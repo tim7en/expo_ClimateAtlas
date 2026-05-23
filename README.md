@@ -56,6 +56,13 @@ The atlas now includes a moderator workspace for content handoff.
 4. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
 5. Export the handoff JSON and give it together with the original PDF files to your associate.
 
+Persistence details:
+
+1. Saved moderator drafts are stored in the browser under local storage key `atlasModeratorDraftsV1` until that browser storage is cleared.
+2. Those local drafts are machine- and browser-profile-specific; they do not automatically travel with the HTML file.
+3. For anything you do not want to lose, export the handoff JSON and/or apply it into `js/moderator-drafts.js` with the importer script.
+4. PDF files themselves are not stored into the repo from the browser; only the recorded file name is kept in the draft data.
+
 To integrate a handoff back into the source project:
 
 ```powershell
@@ -102,6 +109,17 @@ python tools/build.py
 ```
 
 This writes the bundled kiosk file to `dist/uzbekistan-atlas.html`.
+
+### Build a public offline deliverable without moderator tools
+
+```powershell
+python tools/build.py --public --output dist/uzbekistan-atlas-public.html
+```
+
+Public mode does two things:
+
+1. Hides the moderator button, moderator scene, and `M` keyboard shortcut in the shipped bundle.
+2. Ignores browser-local moderator drafts, so the public bundle only reflects the source data and any drafts already applied into `js/moderator-drafts.js`.
 
 ## Recommended workflow
 

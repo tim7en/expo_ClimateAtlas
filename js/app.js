@@ -1,9 +1,12 @@
 const REGIONS = Array.isArray(window.REGIONS) ? window.REGIONS : [];
 const ATLAS_GLOSSARY = Array.isArray(window.ATLAS_GLOSSARY) ? window.ATLAS_GLOSSARY : [];
 const ATLAS_OVERVIEW = window.ATLAS_OVERVIEW || {};
+const ATLAS_CONFIG = window.ATLAS_CONFIG || {};
 const MODERATOR_DRAFTS = Array.isArray(window.MODERATOR_DRAFTS) ? window.MODERATOR_DRAFTS : [];
 const INDEX_BY_ID = new Map(REGIONS.map((region, index) => [region.id, index]));
 const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
+const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator !== false;
+const USE_BROWSER_DRAFTS = ATLAS_CONFIG.useBrowserDrafts !== false;
 
 const ICONS = {
   terrain:
@@ -26,7 +29,10 @@ const state = {
   hintDismissed: false,
   mapReady: false,
   pendingMapId: null,
-  moderatorDrafts: mergeDraftMaps(buildDraftMap(MODERATOR_DRAFTS), loadStoredDrafts()),
+  moderatorDrafts: mergeDraftMaps(
+    buildDraftMap(MODERATOR_DRAFTS),
+    USE_BROWSER_DRAFTS ? loadStoredDrafts() : new Map()
+  ),
   moderatorRegionId: REGIONS[0]?.id ?? "",
   moderatorPdfUrls: new Map(),
   moderatorSessionFiles: new Map()
@@ -198,6 +204,10 @@ function serializeDraftMap(draftMap) {
 }
 
 function loadStoredDrafts() {
+  if (!USE_BROWSER_DRAFTS) {
+    return new Map();
+  }
+
   try {
     const raw = window.localStorage.getItem(MODERATOR_STORAGE_KEY);
 
@@ -212,6 +222,10 @@ function loadStoredDrafts() {
 }
 
 function persistDrafts() {
+  if (!USE_BROWSER_DRAFTS) {
+    return;
+  }
+
   window.localStorage.setItem(MODERATOR_STORAGE_KEY, JSON.stringify(serializeDraftMap(state.moderatorDrafts)));
 }
 
@@ -292,11 +306,25 @@ function setTheme(region) {
 }
 
 function showScene(sceneName) {
+  if (sceneName === "moderator" && !MODERATOR_ENABLED) {
+    sceneName = state.started ? "album" : "cover";
+  }
+
   elements.cover.hidden = sceneName !== "cover";
   elements.album.hidden = sceneName !== "album";
   elements.contents.hidden = sceneName !== "contents";
-  elements.moderator.hidden = sceneName !== "moderator";
+  elements.moderator.hidden = !MODERATOR_ENABLED || sceneName !== "moderator";
   state.currentScene = sceneName;
+}
+
+function syncModeratorAvailability() {
+  if (elements.btnModerator) {
+    elements.btnModerator.hidden = !MODERATOR_ENABLED;
+  }
+
+  if (elements.moderator) {
+    elements.moderator.hidden = true;
+  }
 }
 
 function updateOverview() {
@@ -1008,6 +1036,10 @@ function closeContents() {
 }
 
 function openModerator(regionId = state.moderatorRegionId || REGIONS[0]?.id || "") {
+  if (!MODERATOR_ENABLED) {
+    return;
+  }
+
   if (state.currentScene !== "moderator") {
     state.returnScene = state.currentScene;
   }
@@ -1018,6 +1050,10 @@ function openModerator(regionId = state.moderatorRegionId || REGIONS[0]?.id || "
 }
 
 function closeModerator() {
+  if (!MODERATOR_ENABLED) {
+    return;
+  }
+
   const nextScene = state.returnScene || (state.started ? "album" : "cover");
   showScene(nextScene);
 
@@ -1176,6 +1212,10 @@ function wireEvents() {
     openContents();
   });
   elements.btnModerator.addEventListener("click", () => {
+    if (!MODERATOR_ENABLED) {
+      return;
+    }
+
     if (state.currentScene === "moderator") {
       closeModerator();
       return;
@@ -1313,7 +1353,7 @@ function wireEvents() {
 
       if (event.key.toLowerCase() === "c") {
         openContents();
-      } else if (event.key.toLowerCase() === "m") {
+      } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
         openModerator();
       }
 
@@ -1323,7 +1363,7 @@ function wireEvents() {
     if (state.currentScene === "contents") {
       if (event.key === "Escape") {
         closeContents();
-      } else if (event.key.toLowerCase() === "m") {
+      } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
         openModerator();
       }
 
@@ -1356,7 +1396,7 @@ function wireEvents() {
       }
     } else if (event.key.toLowerCase() === "c") {
       openContents();
-    } else if (event.key.toLowerCase() === "m") {
+    } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
       openModerator();
     } else if (event.key.toLowerCase() === "f") {
       toggleFullscreen();
@@ -1369,6 +1409,7 @@ function wireEvents() {
 
 if (REGIONS.length) {
   updateOverview();
+  syncModeratorAvailability();
   populateModeratorRegionOptions();
   populateModeratorForm(state.moderatorRegionId || REGIONS[0].id);
   buildFilmstrip();

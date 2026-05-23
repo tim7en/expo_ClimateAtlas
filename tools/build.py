@@ -32,6 +32,25 @@ HTML_ASSET_PATTERN = re.compile(
 )
 
 
+def inject_runtime_config(html_text: str, public_mode: bool) -> str:
+    if not public_mode:
+        return html_text
+
+    config_script = (
+        "<script>\n"
+        "window.ATLAS_CONFIG = Object.assign({}, window.ATLAS_CONFIG, {\n"
+        "  showModerator: false,\n"
+        "  useBrowserDrafts: false\n"
+        "});\n"
+        "</script>\n"
+    )
+
+    if "</head>" in html_text:
+        return html_text.replace("</head>", f"{config_script}</head>", 1)
+
+    return f"{config_script}{html_text}"
+
+
 def resolve_cli_path(raw_path: str) -> Path:
     path = Path(raw_path)
     if path.is_absolute():
@@ -109,8 +128,9 @@ def inline_html_assets(html_text: str) -> str:
     return HTML_ASSET_PATTERN.sub(replace, html_text)
 
 
-def build_bundle(index_path: Path, output_path: Path) -> Path:
+def build_bundle(index_path: Path, output_path: Path, public_mode: bool = False) -> Path:
     html_text = index_path.read_text(encoding="utf-8")
+    html_text = inject_runtime_config(html_text, public_mode)
     html_text = inline_stylesheets(html_text)
     html_text = inline_scripts(html_text)
     html_text = inline_html_assets(html_text)
@@ -133,18 +153,24 @@ def main() -> None:
         default=str(DEFAULT_OUTPUT),
         help="Path for the bundled HTML output.",
     )
+    parser.add_argument(
+        "--public",
+        action="store_true",
+        help="Build a public kiosk bundle that hides moderator UI and ignores browser-local drafts.",
+    )
     args = parser.parse_args()
 
     index_path = resolve_cli_path(args.index)
     output_path = resolve_cli_path(args.output)
-    built_path = build_bundle(index_path, output_path)
+    built_path = build_bundle(index_path, output_path, public_mode=args.public)
 
     try:
         relative_path = built_path.relative_to(ROOT)
     except ValueError:
         relative_path = built_path
 
-    print(f"Built {relative_path}")
+    mode = "public" if args.public else "editor"
+    print(f"Built {relative_path} ({mode} mode)")
 
 
 if __name__ == "__main__":
