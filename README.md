@@ -1,6 +1,6 @@
 # Uzbekistan Atlas
 
-An offline climate atlas for pavilion screens, kiosks, and local installs. The app itself is plain HTML, CSS, and JavaScript. Python is only used for support tooling: extracting map images from PDFs and bundling the split source files into a single offline HTML deliverable.
+An offline climate atlas for pavilion screens, kiosks, and local installs. The app itself is plain HTML, CSS, and JavaScript. Python is used for support tooling, and a small local npm dependency is used so moderator PDF uploads can be previewed reliably in the browser.
 
 ## Project structure
 
@@ -24,10 +24,13 @@ uzbekistan-atlas/
 ## Development loop
 
 1. Open the folder in VS Code.
-2. Install the recommended extensions: Live Server and Prettier.
-3. Right-click `index.html` and choose **Open with Live Server**.
-4. Edit `js/regions.js` for atlas content, `css/style.css` for presentation, and `js/app.js` for interaction.
-5. Keep the production bundle out of the edit loop. It is generated from the source files when you are ready to export.
+2. Run `npm install` once to install the local PDF preview dependency used by moderator mode.
+3. Install the recommended extensions: Live Server and Prettier.
+4. Right-click `index.html` and choose **Open with Live Server**.
+5. Edit `js/regions.js` for atlas content, `css/style.css` for presentation, and `js/app.js` for interaction.
+6. Keep the production bundle out of the edit loop. It is generated from the source files when you are ready to export.
+
+Note: moderator PDF preview is not reliable when the atlas is opened directly from `file://` inside embedded browsers. Use Live Server or run `python -m http.server 8010` from the repo root and open `http://127.0.0.1:8010/` in a normal browser when you need to inspect uploaded PDFs.
 
 ## Atlas experience
 
@@ -75,7 +78,7 @@ python tools/build.py
 
 Notes:
 
-1. The browser can preview a selected PDF during the current session, but it does not write the PDF into the repository by itself.
+1. When the atlas is served over local HTTP, the browser can render a selected PDF preview during the current session and keep the original file available for open or download. Direct `file://` browsing may block that preview path in embedded browsers, even though the filename still records correctly.
 2. The exported handoff JSON stores the text edits and recorded PDF filenames; hand over the real PDF files alongside it.
 3. The importer writes the draft data into `js/moderator-drafts.js`, which overlays the base atlas content without forcing you to edit `js/regions.js` manually.
 
@@ -85,6 +88,12 @@ Create a virtual environment if you want one, then install the single dependency
 
 ```powershell
 python -m pip install -r requirements.txt
+```
+
+Install the local JavaScript dependency once as well:
+
+```powershell
+npm install
 ```
 
 ### Export PDF pages as JPG maps

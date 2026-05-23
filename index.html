@@ -312,9 +312,11 @@
                   </label>
 
                   <p class="moderator-help" id="moderator-file-meta">
-                    No PDF selected yet. Attach one to preview it during this session and to
-                    record its filename in the handoff package.
+                    No PDF selected yet. Attach one to open or download it during this
+                    session and to record its filename in the handoff package.
                   </p>
+
+                  <p class="moderator-help moderator-preview-hint" id="moderator-preview-hint" hidden></p>
 
                   <label class="moderator-field" for="moderator-caption">
                     <span>Atlas caption</span>
@@ -364,11 +366,43 @@
                 </div>
 
                 <div class="moderator-pdf-stage" id="moderator-pdf-stage">
-                  <object id="moderator-pdf-preview" type="application/pdf"></object>
                   <div class="moderator-pdf-empty" id="moderator-pdf-empty">
                     Upload a regional PDF to preview it here. The atlas can record the file
                     name and description now, then your associate can convert the PDF pages to
                     JPG plates with the existing Python tool.
+                  </div>
+
+                  <div class="moderator-pdf-render" id="moderator-pdf-render" hidden>
+                    <div class="moderator-pdf-canvas-shell">
+                      <canvas class="moderator-pdf-canvas" id="moderator-pdf-canvas"></canvas>
+                    </div>
+
+                    <div class="moderator-pdf-toolbar">
+                      <div class="moderator-pdf-page" id="moderator-pdf-page">Rendering preview...</div>
+
+                      <div class="moderator-actions moderator-pdf-nav">
+                        <button class="draft-action" id="moderator-pdf-prev" type="button">Previous page</button>
+                        <button class="draft-action" id="moderator-pdf-next" type="button">Next page</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="moderator-pdf-access" id="moderator-pdf-access" hidden>
+                    <p class="moderator-pdf-kicker">Session PDF ready</p>
+                    <h4 class="moderator-pdf-name" id="moderator-pdf-name">regional-map.pdf</h4>
+                    <p class="moderator-help moderator-pdf-copy" id="moderator-pdf-copy">
+                      The first-page preview renders here. Use the buttons below to open the
+                      original PDF in this browser or download a copy locally.
+                    </p>
+
+                    <div class="moderator-actions moderator-pdf-actions">
+                      <a class="notes-btn" id="moderator-pdf-open" href="#" target="_blank" rel="noopener">
+                        Open PDF
+                      </a>
+                      <a class="draft-action" id="moderator-pdf-download" href="#" download>
+                        Download PDF
+                      </a>
+                    </div>
                   </div>
                 </div>
 
@@ -412,6 +446,8 @@
 
     <script src="js/regions.js"></script>
     <script src="js/moderator-drafts.js"></script>
+    <script src="node_modules/pdfjs-dist/build/pdf.min.js"></script>
+    <script src="node_modules/pdfjs-dist/build/pdf.worker.min.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

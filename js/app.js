@@ -3,6 +3,7 @@ const ATLAS_GLOSSARY = Array.isArray(window.ATLAS_GLOSSARY) ? window.ATLAS_GLOSS
 const ATLAS_OVERVIEW = window.ATLAS_OVERVIEW || {};
 const ATLAS_CONFIG = window.ATLAS_CONFIG || {};
 const MODERATOR_DRAFTS = Array.isArray(window.MODERATOR_DRAFTS) ? window.MODERATOR_DRAFTS : [];
+const PDFJS_LIB = window.pdfjsLib || null;
 const INDEX_BY_ID = new Map(REGIONS.map((region, index) => [region.id, index]));
 const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
 const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator !== false;
@@ -35,7 +36,11 @@ const state = {
   ),
   moderatorRegionId: REGIONS[0]?.id ?? "",
   moderatorPdfUrls: new Map(),
-  moderatorSessionFiles: new Map()
+  moderatorSessionFiles: new Map(),
+  moderatorPdfBytes: new Map(),
+  moderatorPdfDocuments: new Map(),
+  moderatorPdfPageByRegion: new Map(),
+  moderatorPdfRenderToken: 0
 };
 
 const view = {
@@ -99,6 +104,7 @@ const elements = {
   moderatorRegion: document.querySelector("#moderator-region"),
   moderatorPdf: document.querySelector("#moderator-pdf"),
   moderatorFileMeta: document.querySelector("#moderator-file-meta"),
+  moderatorPreviewHint: document.querySelector("#moderator-preview-hint"),
   moderatorCaption: document.querySelector("#moderator-caption"),
   moderatorSummary: document.querySelector("#moderator-summary"),
   moderatorNote: document.querySelector("#moderator-note"),
@@ -107,8 +113,17 @@ const elements = {
   moderatorExport: document.querySelector("#moderator-export"),
   moderatorImport: document.querySelector("#moderator-import"),
   moderatorPdfStage: document.querySelector("#moderator-pdf-stage"),
-  moderatorPdfPreview: document.querySelector("#moderator-pdf-preview"),
   moderatorPdfEmpty: document.querySelector("#moderator-pdf-empty"),
+  moderatorPdfRender: document.querySelector("#moderator-pdf-render"),
+  moderatorPdfCanvas: document.querySelector("#moderator-pdf-canvas"),
+  moderatorPdfPage: document.querySelector("#moderator-pdf-page"),
+  moderatorPdfPrev: document.querySelector("#moderator-pdf-prev"),
+  moderatorPdfNext: document.querySelector("#moderator-pdf-next"),
+  moderatorPdfAccess: document.querySelector("#moderator-pdf-access"),
+  moderatorPdfName: document.querySelector("#moderator-pdf-name"),
+  moderatorPdfCopy: document.querySelector("#moderator-pdf-copy"),
+  moderatorPdfOpen: document.querySelector("#moderator-pdf-open"),
+  moderatorPdfDownload: document.querySelector("#moderator-pdf-download"),
   moderatorCommand: document.querySelector("#moderator-command"),
   moderatorStatus: document.querySelector("#moderator-status"),
   moderatorDraftList: document.querySelector("#moderator-draft-list")
@@ -130,6 +145,24 @@ function escapeHtml(value) {
 
 function clampChannel(channel) {
   return Math.max(0, Math.min(255, channel));
+}
+
+function getModeratorPreviewEnvironmentHint() {
+  if (window.location.protocol === "file:") {
+    return "Direct file-open mode can block uploaded PDF preview in embedded browsers. For moderator PDF preview, open the atlas through Live Server or run `python -m http.server 8010` and use http://127.0.0.1:8010/ in a normal browser.";
+  }
+
+  return "";
+}
+
+function syncModeratorPreviewHint() {
+  if (!elements.moderatorPreviewHint) {
+    return;
+  }
+
+  const hint = getModeratorPreviewEnvironmentHint();
+  elements.moderatorPreviewHint.hidden = !hint;
+  elements.moderatorPreviewHint.textContent = hint;
 }
 
 function shadeHexColor(hexColor, percent) {
@@ -785,30 +818,200 @@ function formatBytes(byteCount) {
 
 function revokeModeratorPdf(regionId) {
   const existingUrl = state.moderatorPdfUrls.get(regionId);
+  const existingDocument = state.moderatorPdfDocuments.get(regionId);
 
   if (existingUrl) {
     URL.revokeObjectURL(existingUrl);
     state.moderatorPdfUrls.delete(regionId);
   }
 
+  if (existingDocument?.loadingTask?.destroy) {
+    existingDocument.loadingTask.destroy();
+    state.moderatorPdfDocuments.delete(regionId);
+  }
+
   state.moderatorSessionFiles.delete(regionId);
+  state.moderatorPdfBytes.delete(regionId);
+  state.moderatorPdfPageByRegion.delete(regionId);
+
+  if (elements.moderatorRegion.value === regionId) {
+    resetModeratorPdfCanvas();
+  }
+}
+
+function resetModeratorPdfCanvas() {
+  state.moderatorPdfRenderToken += 1;
+
+  if (elements.moderatorPdfCanvas) {
+    const context = elements.moderatorPdfCanvas.getContext("2d");
+    if (context) {
+      context.clearRect(0, 0, elements.moderatorPdfCanvas.width, elements.moderatorPdfCanvas.height);
+    }
+    elements.moderatorPdfCanvas.width = 0;
+    elements.moderatorPdfCanvas.height = 0;
+    elements.moderatorPdfCanvas.style.width = "0";
+    elements.moderatorPdfCanvas.style.height = "0";
+  }
+
+  elements.moderatorPdfRender.hidden = true;
+  elements.moderatorPdfPage.textContent = "Preview unavailable";
+  elements.moderatorPdfPrev.disabled = true;
+  elements.moderatorPdfNext.disabled = true;
+}
+
+async function ensureModeratorPdfDocument(regionId) {
+  const existingEntry = state.moderatorPdfDocuments.get(regionId);
+  if (existingEntry) {
+    return existingEntry;
+  }
+
+  const pdfBytes = state.moderatorPdfBytes.get(regionId);
+  if (!pdfBytes || !PDFJS_LIB?.getDocument) {
+    return null;
+  }
+
+  const loadingTask = PDFJS_LIB.getDocument({ data: pdfBytes.slice() });
+  const documentEntry = {
+    loadingTask,
+    promise: loadingTask.promise
+  };
+
+  state.moderatorPdfDocuments.set(regionId, documentEntry);
+  return documentEntry;
+}
+
+async function renderModeratorPdfPage(regionId, requestedPage = 1) {
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const pdfBytes = state.moderatorPdfBytes.get(regionId);
+
+  if (!sessionFile) {
+    resetModeratorPdfCanvas();
+    return;
+  }
+
+  if (!pdfBytes) {
+    resetModeratorPdfCanvas();
+    const hint = getModeratorPreviewEnvironmentHint();
+    elements.moderatorPdfCopy.textContent = hint
+      ? `This browser kept ${sessionFile.name} available for open or download, but it did not expose the file bytes for inline preview. ${hint}`
+      : `This browser kept ${sessionFile.name} available for open or download, but it did not expose the file bytes for inline preview.`;
+    return;
+  }
+
+  if (!PDFJS_LIB?.getDocument) {
+    resetModeratorPdfCanvas();
+    elements.moderatorPdfCopy.textContent = "Inline preview is unavailable until `npm install` has been run locally. Use Open PDF or Download PDF instead.";
+    return;
+  }
+
+  const renderToken = ++state.moderatorPdfRenderToken;
+  elements.moderatorPdfRender.hidden = false;
+  elements.moderatorPdfPage.textContent = "Rendering preview...";
+  elements.moderatorPdfPrev.disabled = true;
+  elements.moderatorPdfNext.disabled = true;
+
+  try {
+    const documentEntry = await ensureModeratorPdfDocument(regionId);
+    if (!documentEntry) {
+      resetModeratorPdfCanvas();
+      return;
+    }
+
+    const pdfDocument = await documentEntry.promise;
+    if (renderToken !== state.moderatorPdfRenderToken || elements.moderatorRegion.value !== regionId) {
+      return;
+    }
+
+    const pageNumber = Math.max(1, Math.min(requestedPage, pdfDocument.numPages));
+    const page = await pdfDocument.getPage(pageNumber);
+    if (renderToken !== state.moderatorPdfRenderToken || elements.moderatorRegion.value !== regionId) {
+      return;
+    }
+
+    const baseViewport = page.getViewport({ scale: 1 });
+    const stageWidth = Math.max(320, elements.moderatorPdfStage.clientWidth - 48);
+    const scale = Math.min(2.25, stageWidth / baseViewport.width);
+    const viewport = page.getViewport({ scale });
+    const outputScale = window.devicePixelRatio || 1;
+    const canvas = elements.moderatorPdfCanvas;
+    const context = canvas.getContext("2d", { alpha: false });
+
+    canvas.width = Math.floor(viewport.width * outputScale);
+    canvas.height = Math.floor(viewport.height * outputScale);
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+    if (context) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    await page.render({
+      canvasContext: context,
+      viewport,
+      transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+    }).promise;
+
+    if (renderToken !== state.moderatorPdfRenderToken || elements.moderatorRegion.value !== regionId) {
+      return;
+    }
+
+    state.moderatorPdfPageByRegion.set(regionId, pageNumber);
+    elements.moderatorPdfPage.textContent = `Page ${pageNumber} of ${pdfDocument.numPages}`;
+    elements.moderatorPdfPrev.disabled = pageNumber <= 1;
+    elements.moderatorPdfNext.disabled = pageNumber >= pdfDocument.numPages;
+    elements.moderatorPdfCopy.textContent = `Previewing ${sessionFile.name} (${formatBytes(sessionFile.size)}). Use the buttons below to open the original PDF in this browser or download a local copy.`;
+  } catch {
+    if (renderToken !== state.moderatorPdfRenderToken) {
+      return;
+    }
+
+    resetModeratorPdfCanvas();
+    const hint = getModeratorPreviewEnvironmentHint();
+    elements.moderatorPdfCopy.textContent = hint
+      ? `This browser could not render ${sessionFile.name} inline. Use Open PDF or Download PDF instead. ${hint}`
+      : `This browser could not render ${sessionFile.name} inline. Use Open PDF or Download PDF instead.`;
+    setModeratorStatus(
+      hint
+        ? `Could not render ${sessionFile.name} inline. Use Open PDF or Download PDF instead. ${hint}`
+        : `Could not render ${sessionFile.name} inline. Use Open PDF or Download PDF instead.`,
+      true
+    );
+  }
 }
 
 function updateModeratorPdfPreview(regionId) {
   const pdfUrl = state.moderatorPdfUrls.get(regionId);
   const draft = getDraft(regionId);
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
 
   if (pdfUrl) {
-    elements.moderatorPdfPreview.data = pdfUrl;
+    const pdfName = sessionFile?.name || draft?.sourcePdf || "attached-region.pdf";
+    const sizeText = sessionFile ? ` (${formatBytes(sessionFile.size)})` : "";
+
+    elements.moderatorPdfEmpty.hidden = true;
+    elements.moderatorPdfRender.hidden = false;
+    elements.moderatorPdfAccess.hidden = false;
+    elements.moderatorPdfName.textContent = pdfName;
+    elements.moderatorPdfCopy.textContent = `Rendering a preview for ${pdfName}${sizeText}...`;
+    elements.moderatorPdfOpen.href = pdfUrl;
+    elements.moderatorPdfDownload.href = pdfUrl;
+    elements.moderatorPdfDownload.download = pdfName;
     elements.moderatorPdfStage.classList.add("has-pdf");
+    renderModeratorPdfPage(regionId, state.moderatorPdfPageByRegion.get(regionId) || 1);
     return;
   }
 
-  elements.moderatorPdfPreview.removeAttribute("data");
+  resetModeratorPdfCanvas();
+  elements.moderatorPdfEmpty.hidden = false;
+  elements.moderatorPdfAccess.hidden = true;
+  elements.moderatorPdfOpen.removeAttribute("href");
+  elements.moderatorPdfDownload.removeAttribute("href");
   elements.moderatorPdfStage.classList.remove("has-pdf");
 
   if (draft?.sourcePdf) {
-    elements.moderatorPdfEmpty.textContent = `Draft PDF recorded: ${draft.sourcePdf}. Re-attach the file in this browser session to preview it here.`;
+    elements.moderatorPdfEmpty.textContent = `Draft PDF recorded: ${draft.sourcePdf}. Re-attach the file in this browser session to preview, open, or download it here.`;
     return;
   }
 
@@ -817,7 +1020,8 @@ function updateModeratorPdfPreview(regionId) {
 
 function updateModeratorCommand(regionId) {
   const draft = getDraft(regionId);
-  const pdfName = draft?.sourcePdf || "your-region-map.pdf";
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const pdfName = sessionFile?.name || draft?.sourcePdf || "your-region-map.pdf";
   const baseRegion = REGIONS[INDEX_BY_ID.get(regionId)];
   const suggestedTarget = baseRegion?.map || "assets/maps/your-region.jpg";
 
@@ -1269,7 +1473,7 @@ function wireEvents() {
     setModeratorStatus("");
   });
 
-  elements.moderatorPdf.addEventListener("change", (event) => {
+  elements.moderatorPdf.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     const regionId = elements.moderatorRegion.value;
 
@@ -1281,12 +1485,46 @@ function wireEvents() {
     }
 
     const pdfUrl = URL.createObjectURL(file);
+    let pdfBytes = null;
+
+    try {
+      pdfBytes = new Uint8Array(await file.arrayBuffer());
+      state.moderatorPdfBytes.set(regionId, pdfBytes);
+    } catch {
+      state.moderatorPdfBytes.delete(regionId);
+    }
+
     state.moderatorPdfUrls.set(regionId, pdfUrl);
     state.moderatorSessionFiles.set(regionId, file);
+    state.moderatorPdfPageByRegion.set(regionId, 1);
     elements.moderatorFileMeta.textContent = `Current session PDF: ${file.name} · ${formatBytes(file.size)}`;
     updateModeratorPdfPreview(regionId);
     updateModeratorCommand(regionId);
-    setModeratorStatus(`Attached ${file.name}. Save the draft to record it in the handoff package.`);
+
+    if (pdfBytes) {
+      setModeratorStatus(`Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`);
+      return;
+    }
+
+    const hint = getModeratorPreviewEnvironmentHint();
+    setModeratorStatus(
+      hint
+        ? `Attached ${file.name}, but this browser did not allow inline preview bytes to be read. Use Open PDF or Download PDF for now. ${hint}`
+        : `Attached ${file.name}, but this browser did not allow inline preview bytes to be read. Use Open PDF or Download PDF, then save the draft to record it in the handoff package.`,
+      true
+    );
+  });
+
+  elements.moderatorPdfPrev.addEventListener("click", () => {
+    const regionId = elements.moderatorRegion.value;
+    const currentPage = state.moderatorPdfPageByRegion.get(regionId) || 1;
+    renderModeratorPdfPage(regionId, currentPage - 1);
+  });
+
+  elements.moderatorPdfNext.addEventListener("click", () => {
+    const regionId = elements.moderatorRegion.value;
+    const currentPage = state.moderatorPdfPageByRegion.get(regionId) || 1;
+    renderModeratorPdfPage(regionId, currentPage + 1);
   });
 
   elements.moderatorForm.addEventListener("submit", (event) => {
@@ -1420,6 +1658,7 @@ function wireEvents() {
 if (REGIONS.length) {
   updateOverview();
   syncModeratorAvailability();
+  syncModeratorPreviewHint();
   populateModeratorRegionOptions();
   populateModeratorForm(state.moderatorRegionId || REGIONS[0].id);
   buildFilmstrip();

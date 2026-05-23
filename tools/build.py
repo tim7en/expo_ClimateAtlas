@@ -95,8 +95,10 @@ def inline_quoted_assets(text: str, base_dir: Path) -> str:
 def inline_stylesheets(html_text: str) -> str:
     def replace(match: re.Match[str]) -> str:
         stylesheet_path = resolve_local_asset(ROOT, match.group("href"))
-        if not stylesheet_path or not stylesheet_path.is_file():
+        if not stylesheet_path:
             return match.group(0)
+        if not stylesheet_path.is_file():
+            raise FileNotFoundError(f"Missing stylesheet: {match.group('href')}")
         stylesheet = stylesheet_path.read_text(encoding="utf-8")
         stylesheet = inline_css_urls(stylesheet, stylesheet_path.parent)
         stylesheet = inline_quoted_assets(stylesheet, stylesheet_path.parent)
@@ -108,8 +110,10 @@ def inline_stylesheets(html_text: str) -> str:
 def inline_scripts(html_text: str) -> str:
     def replace(match: re.Match[str]) -> str:
         script_path = resolve_local_asset(ROOT, match.group("src"))
-        if not script_path or not script_path.is_file():
+        if not script_path:
             return match.group(0)
+        if not script_path.is_file():
+            raise FileNotFoundError(f"Missing script: {match.group('src')}")
         script_text = script_path.read_text(encoding="utf-8")
         script_text = inline_quoted_assets(script_text, ROOT)
         return f"<script>\n{script_text}\n</script>"

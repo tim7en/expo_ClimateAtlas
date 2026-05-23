@@ -1,0 +1,10 @@
+{
+  "name": "uzbekistan-atlas",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Offline climate atlas with moderator PDF handoff tools",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "pdfjs-dist": "3.11.174"
+  }
+}
