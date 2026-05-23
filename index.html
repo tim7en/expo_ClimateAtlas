@@ -311,6 +311,17 @@
                     <input id="moderator-pdf" name="moderator-pdf" type="file" accept=".pdf,application/pdf" />
                   </label>
 
+                  <label class="moderator-field" for="moderator-project-pdf-name">
+                    <span>Project PDF name</span>
+                    <input
+                      id="moderator-project-pdf-name"
+                      name="moderator-project-pdf-name"
+                      type="text"
+                      maxlength="120"
+                      placeholder="karakalpakstan-water-balance-2024"
+                    />
+                  </label>
+
                   <p class="moderator-help" id="moderator-file-meta">
                     No PDF selected yet. Attach one to open or download it during this
                     session and to record its filename in the handoff package.
@@ -351,6 +362,7 @@
 
                   <div class="moderator-actions">
                     <button class="notes-btn" id="moderator-save" type="submit">Save draft</button>
+                    <button class="draft-action" id="moderator-archive" type="button">Archive PDF in project</button>
                     <button class="draft-action" id="moderator-integrate" type="button">Integrate into atlas</button>
                     <button class="draft-action" id="moderator-preview" type="button">Preview in atlas</button>
                     <button class="draft-action" id="moderator-reset" type="button">Reset draft</button>

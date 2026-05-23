@@ -56,9 +56,10 @@ The atlas now includes a moderator workspace for content handoff.
 1. Open **Moderator** from the top bar.
 2. Choose a region.
 3. Attach the source PDF for that region, write a caption, and update the long description.
-4. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
-5. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
-6. Export the handoff JSON and give it together with the original PDF files to your associate.
+4. Optionally set **Project PDF name** and use **Archive PDF in project** to copy the uploaded file into `pdfs/moderator-library/` and update `pdfs/moderator-library/atlas-project-memory.json`.
+5. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
+6. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
+7. Export the handoff JSON and give it together with the original PDF files to your associate.
 
 The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
 
@@ -69,20 +70,21 @@ Persistence details:
 1. Saved moderator drafts are stored in the browser under local storage key `atlasModeratorDraftsV1` until that browser storage is cleared.
 2. Those local drafts are machine- and browser-profile-specific; they do not automatically travel with the HTML file.
 3. For anything you do not want to lose, export the handoff JSON and/or apply it into `js/moderator-drafts.js` with the importer script.
-4. PDF files themselves are not stored into the repo from the browser; only the recorded file name is kept in the draft data.
+4. If you use **Archive PDF in project**, the atlas asks for write access to the project folder and stores a repo-safe copy in `pdfs/moderator-library/` together with a manifest file that tracks the region, PDF path, and current draft text.
+5. Project archiving uses the browser File System Access API, so it works best in a Chromium browser opened over local HTTP such as `http://127.0.0.1:8010/`.
 
 To integrate a handoff back into the source project:
 
 ```powershell
 python tools/apply_moderator_handoff.py path\to\moderator-handoff.json
-python tools/extract_maps.py pdfs --output-dir assets/maps
+python tools/extract_maps.py pdfs/moderator-library --output-dir assets/maps
 python tools/build.py
 ```
 
 Notes:
 
 1. When the atlas is served over local HTTP, the browser can render a selected PDF preview during the current session and keep the original file available for open or download. Direct `file://` browsing may block that preview path in embedded browsers, even though the filename still records correctly.
-2. The exported handoff JSON stores the text edits and recorded PDF filenames; hand over the real PDF files alongside it.
+2. The exported handoff JSON stores the text edits, archive metadata, and recorded PDF filenames; hand over the real PDF files alongside it unless you already staged them in `pdfs/moderator-library/`.
 3. If you use **Integrate into atlas**, the exported handoff JSON also carries the saved moderator atlas preview image so your associate can apply it into `js/moderator-drafts.js` before a final JPG export is ready.
 4. The importer writes the draft data into `js/moderator-drafts.js`, which overlays the base atlas content without forcing you to edit `js/regions.js` manually.
 
