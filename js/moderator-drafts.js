@@ -1,0 +1,1 @@
+window.MODERATOR_DRAFTS = [];

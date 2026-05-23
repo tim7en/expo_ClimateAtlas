@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT = ROOT / "js" / "moderator-drafts.js"
+
+
+def resolve_path(raw_path: str) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (ROOT / path).resolve()
+
+
+def normalize_draft(raw_draft: object) -> dict[str, str] | None:
+    if not isinstance(raw_draft, dict):
+        return None
+
+    region_id = str(raw_draft.get("regionId") or raw_draft.get("id") or "").strip()
+    if not region_id:
+        return None
+
+    normalized = {
+        "regionId": region_id,
+        "caption": str(raw_draft.get("caption") or "").strip(),
+        "summary": str(raw_draft.get("summary") or "").strip(),
+        "moderatorNote": str(raw_draft.get("moderatorNote") or raw_draft.get("note") or "").strip(),
+        "sourcePdf": str(raw_draft.get("sourcePdf") or raw_draft.get("pdfName") or "").strip(),
+        "sourceFileSize": str(raw_draft.get("sourceFileSize") or "").strip(),
+        "updatedAt": str(raw_draft.get("updatedAt") or "").strip(),
+    }
+
+    return normalized
+
+
+def load_handoff(path: Path) -> list[dict[str, str]]:
+    payload = json.loads(path.read_text(encoding="utf-8-sig"))
+
+    if isinstance(payload, list):
+        raw_drafts = payload
+    elif isinstance(payload, dict):
+        raw_drafts = payload.get("drafts")
+    else:
+        raise ValueError("Handoff file must be a JSON array or an object with a 'drafts' field.")
+
+    if not isinstance(raw_drafts, list):
+        raise ValueError("The handoff file did not contain a valid draft list.")
+
+    normalized_drafts: list[dict[str, str]] = []
+    for raw_draft in raw_drafts:
+        normalized = normalize_draft(raw_draft)
+        if normalized:
+            normalized_drafts.append(normalized)
+
+    if not normalized_drafts:
+        raise ValueError("No valid moderator drafts were found in the handoff file.")
+
+    return normalized_drafts
+
+
+def write_js_module(output_path: Path, drafts: list[dict[str, str]]) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(drafts, ensure_ascii=False, indent=2)
+    output_path.write_text(f"window.MODERATOR_DRAFTS = {payload};\n", encoding="utf-8")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Apply an exported atlas moderator handoff JSON to js/moderator-drafts.js."
+    )
+    parser.add_argument("handoff", help="Path to the exported moderator handoff JSON file.")
+    parser.add_argument(
+        "--output",
+        default=str(DEFAULT_OUTPUT),
+        help="Path to the generated moderator drafts JS file.",
+    )
+    args = parser.parse_args()
+
+    handoff_path = resolve_path(args.handoff)
+    output_path = resolve_path(args.output)
+
+    drafts = load_handoff(handoff_path)
+    write_js_module(output_path, drafts)
+
+    try:
+        relative_output = output_path.relative_to(ROOT)
+    except ValueError:
+        relative_output = output_path
+
+    print(f"Applied {len(drafts)} moderator draft(s) to {relative_output}")
+
+
+if __name__ == "__main__":
+    main()

@@ -2,121 +2,406 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Uzbekistan Showcase Atlas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Atlas of Uzbekistan - Climate and Water</title>
     <meta
       name="description"
-      content="A static showcase atlas for kiosk, pavilion, and exhibition displays."
+      content="An offline interactive climate atlas of Uzbekistan with regional plates, map notes, pan-and-zoom, and searchable contents."
     />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <div class="ambient ambient-left"></div>
-      <div class="ambient ambient-right"></div>
+    <div class="bg" aria-hidden="true"></div>
 
-      <header class="hero">
-        <p class="eyebrow">Showcase atlas / kiosk-ready</p>
-        <div class="hero-grid">
-          <div class="hero-copy">
-            <h1>Uzbekistan Atlas</h1>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <svg class="rose" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="1.4" />
+            <circle cx="50" cy="50" r="33" stroke="currentColor" stroke-width="0.8" opacity="0.6" />
+            <path d="M50 6 L57 50 L50 94 L43 50 Z" fill="currentColor" />
+            <path d="M6 50 L50 43 L94 50 L50 57 Z" fill="currentColor" opacity="0.72" />
+            <path d="M50 50 L72 28 L57 50 Z M50 50 L28 72 L43 50 Z" fill="currentColor" opacity="0.5" />
+            <circle cx="50" cy="50" r="4" fill="#17120f" />
+          </svg>
+
+          <div class="brand-tx">
+            <div class="k">Offline Climate Atlas</div>
+            <div class="t">Atlas of Uzbekistan</div>
+          </div>
+        </div>
+
+        <div class="sp"></div>
+
+        <button class="tbtn" id="btnContents" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          <span class="lbl">Contents</span>
+        </button>
+
+        <button class="tbtn" id="btnModerator" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3 4 7v6c0 5 3.4 7.8 8 8 4.6-0.2 8-3 8-8V7l-8-4Z" />
+            <path d="M9.5 11.5 11 13l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="lbl">Moderator</span>
+        </button>
+
+        <button class="tbtn" id="btnFull" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />
+          </svg>
+          <span class="lbl" id="full-label">Fullscreen</span>
+        </button>
+      </header>
+
+      <main class="stage">
+        <section class="scene cover" id="cover">
+          <div class="graticule" aria-hidden="true"></div>
+
+          <div class="cv">
+            <p class="ek">Interactive album · climate and water plates</p>
+            <h1>
+              Climate and <em>Water</em><br />
+              of Uzbekistan
+            </h1>
+            <div class="rule"></div>
             <p>
-              A lightweight front-end for exhibition screens, pavilion installations,
-              and offline storytelling. Develop in separate source files, then bundle
-              the final kiosk deliverable into one self-contained HTML file.
+              A tactile, offline atlas for pavilion screens and local installations,
+              built around regional map plates, environmental notes, and a fluid map
+              viewport for exploration.
             </p>
+
+            <div class="meta" aria-label="Atlas overview">
+              <div>
+                <div class="n" id="metric-plates">14</div>
+                <div class="l">Plates</div>
+              </div>
+              <div>
+                <div class="n" id="metric-rivers">2</div>
+                <div class="l">Great Rivers</div>
+              </div>
+              <div>
+                <div class="n" id="metric-sea">1</div>
+                <div class="l">Vanishing Sea</div>
+              </div>
+            </div>
+
+            <button class="begin" id="btnBegin" type="button">
+              Open the atlas
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="scene album" id="album" hidden>
+          <div class="plate-wrap">
+            <article class="plate" id="plate" aria-live="polite">
+              <div class="p-head">
+                <div class="p-num" id="pNum">PL · 01</div>
+
+                <div class="p-titles">
+                  <h2 id="pName">Region</h2>
+                  <div class="uz" id="pUz">Viloyati</div>
+                </div>
+
+                <div class="p-type">
+                  <div class="a" id="pTypeA">Climate and water plate</div>
+                  <div class="b" id="pTypeB">1 : 250 000</div>
+                </div>
+
+                <button class="notes-btn" id="btnNotes" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-5M12 8h0.01" />
+                  </svg>
+                  Map notes
+                </button>
+              </div>
+
+              <div class="vp-shell">
+                <span class="tick tl"></span>
+                <span class="tick tr"></span>
+                <span class="tick bl"></span>
+                <span class="tick br"></span>
+
+                <div class="viewport" id="viewport">
+                  <img class="map-img" id="map-img" alt="" draggable="false" hidden />
+
+                  <div class="map-placeholder" id="map-placeholder">
+                    <p class="placeholder-label">Awaiting atlas export</p>
+                    <h3 id="placeholder-title">Add a regional climate plate</h3>
+                    <p id="placeholder-copy">
+                      Export a curated JPG to assets/maps and keep the path in
+                      js/regions.js aligned with the final atlas plate.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="hint" id="hint">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                  Drag to pan · scroll or double-click to zoom
+                </div>
+
+                <div class="scale-tag">
+                  Scale <b id="sTag">1 : 250 000</b>
+                </div>
+
+                <div class="zoom" aria-label="Map zoom controls">
+                  <button id="zIn" type="button" title="Zoom in">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                  <button id="zOut" type="button" title="Zoom out">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                  <button id="zFit" type="button" title="Fit to plate">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                      <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="scrim" id="scrim"></div>
+
+                <aside class="drawer" id="drawer" aria-label="Regional notes">
+                  <div class="dr-head">
+                    <div class="dr-accent"></div>
+                    <div class="ek" id="drEk">Climate and water plate</div>
+                    <h3 id="drName">Region</h3>
+                    <div class="uz" id="drUz">Viloyati</div>
+
+                    <button class="dr-close" id="drClose" type="button" aria-label="Close notes">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div class="dr-body">
+                    <p class="dr-summary" id="drSummary"></p>
+                    <div class="facts" id="drFacts"></div>
+
+                    <details class="gloss">
+                      <summary><span class="chev">▸</span> Reading the atlas labels</summary>
+                      <p class="note">
+                        The original map plates use recurring Uzbek geographic terms.
+                        Keep this glossary in the drawer so viewers can decode labels on
+                        the scanned atlas images.
+                      </p>
+                      <div class="gtable" id="drGloss"></div>
+                    </details>
+                  </div>
+                </aside>
+              </div>
+            </article>
           </div>
 
-          <div class="hero-tools">
-            <label class="search-field" for="region-search">
-              <span>Find a region</span>
+          <nav class="bottombar" aria-label="Atlas navigation">
+            <button class="navbtn" id="prev" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M19 12H5M11 5l-7 7 7 7" />
+              </svg>
+              <span class="lbl">Previous</span>
+            </button>
+
+            <div class="counter">
+              <div class="c-r" id="cName">Region</div>
+              <div class="c-n"><span id="cIdx">01</span> / 14 · Plate</div>
+            </div>
+
+            <button class="navbtn" id="next" type="button">
+              <span class="lbl">Next</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <div class="filmstrip" id="filmstrip"></div>
+          </nav>
+        </section>
+
+        <section class="scene contents" id="contents" hidden>
+          <button class="cclose" id="cClose" type="button" aria-label="Close contents">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+
+          <h2>Atlas Contents</h2>
+          <div class="csub">Search the fourteen climate and water plates</div>
+
+          <div class="contents-tools">
+            <label class="search-field" for="contents-search">
+              <span>Find a region, river, landscape, or risk</span>
               <input
-                id="region-search"
-                name="region-search"
+                id="contents-search"
+                name="contents-search"
                 type="search"
-                placeholder="Search by name, theme, or landscape"
                 autocomplete="off"
+                placeholder="Search by region, river, climate, or water system"
               />
             </label>
 
-            <div class="hero-actions">
-              <button id="autoplay-toggle" class="action-button" type="button">
-                Start autoplay
+            <p class="result-pill" id="contents-count">14 plates visible</p>
+          </div>
+
+          <div class="cgrid" id="cgrid"></div>
+        </section>
+
+        <section class="scene moderator" id="moderator" hidden>
+          <div class="moderator-shell">
+            <div class="moderator-hero">
+              <div>
+                <p class="csub">Moderator studio</p>
+                <h2>Prepare atlas handoff</h2>
+                <p class="moderator-intro">
+                  Attach a source PDF, write the regional description, and save a handoff
+                  draft that previews inside the atlas now and can later be applied to the
+                  project source by your associate.
+                </p>
+              </div>
+
+              <button class="tbtn" id="moderator-back" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M19 12H5M11 5l-7 7 7 7" />
+                </svg>
+                <span class="lbl">Back to atlas</span>
               </button>
-              <button id="next-region" class="action-button action-button--ghost" type="button">
-                Next region
-              </button>
             </div>
-          </div>
-        </div>
-      </header>
 
-      <main class="atlas-layout">
-        <aside class="region-rail" aria-label="Atlas regions">
-          <div class="rail-heading">
-            <div>
-              <p class="section-label">Atlas index</p>
-              <h2>Regions</h2>
-            </div>
-            <p id="result-count" class="result-count"></p>
-          </div>
-          <div id="region-list" class="region-list"></div>
-        </aside>
+            <div class="moderator-grid">
+              <article class="moderator-card">
+                <div class="card-heading">
+                  <div>
+                    <p class="csub">Draft editor</p>
+                    <h3>Region metadata</h3>
+                  </div>
+                </div>
 
-        <section class="showcase-panel" aria-live="polite">
-          <div class="showcase-header">
-            <div>
-              <p id="region-index" class="section-label">Region 01</p>
-              <h2 id="region-name">Loading atlas...</h2>
-              <p id="region-caption" class="region-caption"></p>
-            </div>
-            <div id="theme-pills" class="theme-pills"></div>
-          </div>
+                <form id="moderator-form" class="moderator-form">
+                  <label class="moderator-field" for="moderator-region">
+                    <span>Region</span>
+                    <select id="moderator-region" name="moderator-region"></select>
+                  </label>
 
-          <div class="showcase-grid">
-            <article class="map-panel">
-              <div id="map-stage" class="map-stage" data-ready="false">
-                <img id="map-image" alt="" hidden />
-                <div id="map-placeholder" class="map-placeholder">
-                  <p class="placeholder-label">Map preview</p>
-                  <h3 id="placeholder-title">Add curated JPG maps</h3>
-                  <p id="placeholder-copy">
-                    Export atlas pages into assets/maps, then keep the file names in
-                    js/regions.js aligned with the curated set.
+                  <label class="moderator-field" for="moderator-pdf">
+                    <span>Source PDF</span>
+                    <input id="moderator-pdf" name="moderator-pdf" type="file" accept=".pdf,application/pdf" />
+                  </label>
+
+                  <p class="moderator-help" id="moderator-file-meta">
+                    No PDF selected yet. Attach one to preview it during this session and to
+                    record its filename in the handoff package.
+                  </p>
+
+                  <label class="moderator-field" for="moderator-caption">
+                    <span>Atlas caption</span>
+                    <input
+                      id="moderator-caption"
+                      name="moderator-caption"
+                      type="text"
+                      maxlength="160"
+                      placeholder="Short caption for contents and placeholder copy"
+                    />
+                  </label>
+
+                  <label class="moderator-field" for="moderator-summary">
+                    <span>Atlas description</span>
+                    <textarea
+                      id="moderator-summary"
+                      name="moderator-summary"
+                      rows="8"
+                      placeholder="Long-form description for the map notes drawer"
+                    ></textarea>
+                  </label>
+
+                  <label class="moderator-field" for="moderator-note">
+                    <span>Associate note</span>
+                    <textarea
+                      id="moderator-note"
+                      name="moderator-note"
+                      rows="4"
+                      placeholder="Optional handoff note for the person completing the atlas"
+                    ></textarea>
+                  </label>
+
+                  <div class="moderator-actions">
+                    <button class="notes-btn" id="moderator-save" type="submit">Save draft</button>
+                    <button class="draft-action" id="moderator-preview" type="button">Preview in atlas</button>
+                    <button class="draft-action" id="moderator-reset" type="button">Reset draft</button>
+                  </div>
+                </form>
+              </article>
+
+              <article class="moderator-card">
+                <div class="card-heading">
+                  <div>
+                    <p class="csub">Handoff package</p>
+                    <h3>PDF preview and export</h3>
+                  </div>
+                </div>
+
+                <div class="moderator-pdf-stage" id="moderator-pdf-stage">
+                  <object id="moderator-pdf-preview" type="application/pdf"></object>
+                  <div class="moderator-pdf-empty" id="moderator-pdf-empty">
+                    Upload a regional PDF to preview it here. The atlas can record the file
+                    name and description now, then your associate can convert the PDF pages to
+                    JPG plates with the existing Python tool.
+                  </div>
+                </div>
+
+                <div class="moderator-handoff">
+                  <p class="moderator-command-label">Suggested next command</p>
+                  <pre class="moderator-command" id="moderator-command">python tools/extract_maps.py pdfs --output-dir assets/maps</pre>
+                  <p class="moderator-help">
+                    Export the handoff JSON and give it together with the original PDFs. Your
+                    associate can apply the JSON into the project source, export JPG plates,
+                    and rebuild the offline atlas.
                   </p>
                 </div>
-              </div>
-              <p id="map-note" class="map-note"></p>
-            </article>
 
-            <div class="content-stack">
-              <article class="story-card panel-card">
-                <p class="section-label">Narrative focus</p>
-                <p id="region-summary" class="story-copy"></p>
-              </article>
+                <div class="moderator-actions moderator-actions--stack">
+                  <button class="notes-btn" id="moderator-export" type="button">Export handoff</button>
 
-              <article class="panel-card">
-                <div class="card-heading">
-                  <p class="section-label">Quick facts</p>
-                  <h3>What to show on screen</h3>
+                  <label class="draft-action draft-action--label" for="moderator-import">
+                    Import handoff
+                  </label>
+                  <input id="moderator-import" name="moderator-import" type="file" accept=".json,application/json" hidden />
                 </div>
-                <div id="facts-grid" class="facts-grid"></div>
-              </article>
 
-              <article class="panel-card">
-                <div class="card-heading">
-                  <p class="section-label">Highlights</p>
-                  <h3>Suggested storytelling hooks</h3>
-                </div>
-                <ul id="highlights-list" class="highlights-list"></ul>
+                <p class="moderator-status" id="moderator-status" aria-live="polite"></p>
               </article>
             </div>
+
+            <article class="moderator-card moderator-drafts">
+              <div class="card-heading">
+                <div>
+                  <p class="csub">Current draft set</p>
+                  <h3>Saved region handoffs</h3>
+                </div>
+              </div>
+
+              <div class="moderator-draft-list" id="moderator-draft-list"></div>
+            </article>
           </div>
         </section>
       </main>
     </div>
 
     <script src="js/regions.js"></script>
+    <script src="js/moderator-drafts.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

@@ -1,296 +1,506 @@
+window.ATLAS_OVERVIEW = {
+  riverCount: 2,
+  seaCount: 1
+};
+
+window.ATLAS_GLOSSARY = [
+  { term: "daryo", definition: "river" },
+  { term: "suv ombori", definition: "reservoir" },
+  { term: "kanal", definition: "canal" },
+  { term: "cho'l", definition: "desert" },
+  { term: "tog'", definition: "mountain" },
+  { term: "vodiy", definition: "valley" }
+];
+
 window.REGIONS = [
   {
     id: "karakalpakstan",
     name: "Republic of Karakalpakstan",
-    caption: "Aral Sea recovery, delta landscapes, and cultural memory.",
+    uz: "Qoraqalpog'iston Respublikasi",
+    type: "Climate and water plate",
+    scale: "1 : 900 000",
+    caption: "Aral retreat, Amu Darya delta channels, and restoration landscapes.",
     map: "assets/maps/01-karakalpakstan.jpg",
-    palette: ["#df6d2f", "#a74622", "#f2c078"],
+    palette: ["#c16239", "#2d7068", "#d3b064"],
     summary:
-      "Frame the northern frontier through restoration: desertified seabed, resilient delta settlements, and museum-led narratives that connect ecology with identity.",
-    themes: ["Restoration", "Aral Sea", "Museum culture"],
+      "Karakalpakstan frames Uzbekistan's starkest water story. The lower Amu Darya splays into a fragile delta, while the exposed bed of the Aral Sea drives salt-and-dust storms, wetland loss, and new restoration efforts across the northwestern frontier.",
+    themes: ["Aral Sea", "Delta restoration", "Dust storms", "Wetlands"],
     facts: [
-      { label: "Capital", value: "Nukus" },
-      { label: "Landscape", value: "Delta, desert, plateau" },
-      { label: "Showcase angle", value: "Resilience after environmental shock" },
-      { label: "Suggested export", value: "01-karakalpakstan.jpg" }
-    ],
-    highlights: [
-      "Open with aerial atlas imagery that contrasts former shoreline and current land use.",
-      "Pair the map with one short story on dust mitigation, water restoration, or wetland recovery.",
-      "Use cultural references from Nukus to avoid presenting the region only through crisis." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Delta lowlands, exposed seabed, desert plateau, and sparse wetlands."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The lower Amu Darya and its delta distributaries define every settled corridor."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Highly continental and wind-exposed, with extreme summer aridity and saline dust."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Track how a vanishing sea turns a water map into a resilience map."
+      }
     ]
   },
   {
     id: "andijan",
     name: "Andijan Region",
-    caption: "Dense settlement, manufacturing, and valley-scale agriculture.",
+    uz: "Andijon viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 250 000",
+    caption: "Kara Darya storage, dense settlement, and intense irrigated cultivation.",
     map: "assets/maps/02-andijan.jpg",
-    palette: ["#c65f2f", "#4f8f75", "#efca84"],
+    palette: ["#cb6a39", "#3b8772", "#e3bf77"],
     summary:
-      "Present Andijan as a compact, intensely productive landscape where industry, transport, and irrigated agriculture sit close together inside the Fergana Valley.",
-    themes: ["Industry", "Agriculture", "Valley mobility"],
+      "Andijan sits at the eastern end of the Fergana Valley, where cultivated land, industry, and settlement are compressed into a small basin. The Kara Darya and Andijan reservoir anchor the region's irrigation system, but the same density that makes the valley productive also amplifies heat and water competition.",
+    themes: ["Kara Darya", "Reservoir storage", "Irrigation", "Dense settlement"],
     facts: [
-      { label: "Center", value: "Andijan" },
-      { label: "Landscape", value: "Valley floor and foothills" },
-      { label: "Showcase angle", value: "High density and efficient land use" },
-      { label: "Suggested export", value: "02-andijan.jpg" }
-    ],
-    highlights: [
-      "Use callouts on settlement density and transport corridors across the eastern valley.",
-      "Contrast industrial clusters with orchards and irrigated farmland in the same frame.",
-      "Keep labels large and simple because this is one of the visually busiest regions." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "A compact valley basin ringed by mountain slopes and transport corridors."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Kara Darya, Andijan reservoir, and a dense canal web feed the fields."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "A sheltered continental valley climate with hot summers and cold winter inversions."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Show what maximum agricultural intensity looks like under constrained water supply."
+      }
     ]
   },
   {
     id: "bukhara",
     name: "Bukhara Region",
-    caption: "Historic oasis networks and desert-edge infrastructure.",
+    uz: "Buxoro viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 500 000",
+    caption: "Oasis hydrology, desert heat, and lower Zarafshan dependency.",
     map: "assets/maps/03-bukhara.jpg",
-    palette: ["#d38938", "#2b7770", "#f2d08d"],
+    palette: ["#cc8442", "#2a746e", "#e1c07d"],
     summary:
-      "Anchor Bukhara around the oasis idea: historic urban nodes, caravan-era routes, and modern energy and logistics systems extending into arid space.",
-    themes: ["Heritage", "Oasis systems", "Desert logistics"],
+      "Bukhara is an oasis region suspended inside desert. Its settlements and farms rely on the lower Zarafshan system, canal diversions, and shallow groundwater, making the plate ideal for reading the tension between historic oasis continuity and modern water stress in a very dry climate.",
+    themes: ["Oasis", "Zarafshan", "Desert heat", "Groundwater"],
     facts: [
-      { label: "Center", value: "Bukhara" },
-      { label: "Landscape", value: "Oasis and surrounding desert" },
-      { label: "Showcase angle", value: "Historic continuity in an arid setting" },
-      { label: "Suggested export", value: "03-bukhara.jpg" }
-    ],
-    highlights: [
-      "Use the oasis footprint as the visual anchor before adding any thematic overlays.",
-      "Reserve one fact card for heritage value and one for present-day logistics or energy routes.",
-      "Warm earth tones work especially well for this region in a pavilion setting." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Oasis islands spread across low desert plains and wind-shaped sandy tracts."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The lower Zarafshan, irrigation canals, and groundwater keep the oasis alive."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Very hot, arid summers with high evaporation and limited local runoff."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Use the map to explain how oasis systems survive at the edge of water scarcity."
+      }
     ]
   },
   {
     id: "fergana",
     name: "Fergana Region",
-    caption: "A fertile valley landscape with layered urban and industrial networks.",
+    uz: "Farg'ona viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 250 000",
+    caption: "Enclosed valley climates, mountain runoff, and irrigated patchworks.",
     map: "assets/maps/04-fergana.jpg",
-    palette: ["#be5d40", "#317a6b", "#dfe090"],
+    palette: ["#c45f40", "#34806f", "#dae08f"],
     summary:
-      "Show Fergana as a tightly woven patchwork of settlements, farmland, and manufacturing, where geography and population density amplify every planning decision.",
-    themes: ["Population", "Industry", "Irrigation"],
+      "Fergana occupies the southern rim of the enclosed Fergana Valley, where irrigated plains abruptly meet the Alay foothills. Meltwater from surrounding mountain systems feeds the valley floor, making this plate a clear demonstration of how distant snow and local heat are tied together inside a closed agricultural basin.",
+    themes: ["Valley climate", "Mountain runoff", "Irrigation", "Closed basin"],
     facts: [
-      { label: "Center", value: "Fergana" },
-      { label: "Landscape", value: "Valley basin" },
-      { label: "Showcase angle", value: "Intensity of land use" },
-      { label: "Suggested export", value: "04-fergana.jpg" }
-    ],
-    highlights: [
-      "Use simplified administrative boundaries so the valley shape stays legible from a distance.",
-      "If you add charts later, population density and cultivated land are natural pairings.",
-      "Treat the region as part of a wider valley story, not as an isolated map panel." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Flat irrigated plains rising quickly into foothills and mountain fronts."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "Tributaries from surrounding ranges feed canals and fields across the valley floor."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "A warm continental valley regime shaped by winter inversions and summer heat."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Read the plate as a closed climate-and-water bowl fed from its own mountain rim."
+      }
     ]
   },
   {
     id: "jizzakh",
     name: "Jizzakh Region",
-    caption: "Steppe corridors, mountain edges, and strategic central positioning.",
+    uz: "Jizzax viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 450 000",
+    caption: "Hungry Steppe margins, reservoir chains, and east-to-west moisture decline.",
     map: "assets/maps/05-jizzakh.jpg",
-    palette: ["#d07137", "#5e8c56", "#efc96e"],
+    palette: ["#cb733a", "#5b8757", "#ddb76a"],
     summary:
-      "Jizzakh works well as a transition region: central, connective, and geographically varied, with steppe openness giving way to mountain foothills and reservoirs.",
-    themes: ["Connectivity", "Reservoirs", "Steppe"],
+      "Jizzakh bridges mountain-fed eastern landscapes and drier western steppe. Reservoirs and the Aydar-Arnasay lake system make the plate especially useful for discussing redistributed water, irrigation expansion, and the way climate conditions shift rapidly across short regional distances.",
+    themes: ["Aydar-Arnasay", "Reservoirs", "Steppe", "Irrigation expansion"],
     facts: [
-      { label: "Center", value: "Jizzakh" },
-      { label: "Landscape", value: "Steppe, foothills, reservoirs" },
-      { label: "Showcase angle", value: "Central corridor between regions" },
-      { label: "Suggested export", value: "05-jizzakh.jpg" }
-    ],
-    highlights: [
-      "Use broad gradient shading to emphasize open land rather than dense point labels.",
-      "Highlight transport links that make the region read as connective rather than peripheral.",
-      "A water-management callout can balance the otherwise open visual composition." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Foothills and uplands in the east opening onto broad steppe and basin lands."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "Reservoir chains, managed canals, and the Aydar-Arnasay water system shape land use."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Drier westward gradients, hot summers, and strong year-to-year rainfall variability."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Use it to show how infrastructure can redistribute water across a semi-arid steppe."
+      }
     ]
   },
   {
     id: "namangan",
     name: "Namangan Region",
-    caption: "Foothill settlements, craft traditions, and irrigated production.",
+    uz: "Namangan viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 250 000",
+    caption: "Northern Fergana tributaries, foothill hazards, and irrigated orchards.",
     map: "assets/maps/06-namangan.jpg",
-    palette: ["#cb6334", "#2e8f7b", "#f0bc6f"],
+    palette: ["#c86135", "#2f8b76", "#e1bb70"],
     summary:
-      "Position Namangan around fine-grained landscape transitions: valley cultivation below, foothill settlement patterns above, and strong local identity throughout.",
-    themes: ["Foothills", "Craft economy", "Agriculture"],
+      "Namangan lies between the densely farmed Fergana Valley floor and steep ranges to the north. Mountain-fed tributaries recharge canals and orchards, but the same relief also concentrates flash-flood risk, erosion, and strong local contrasts between cooler foothills and warmer lowland farms.",
+    themes: ["Tributaries", "Foothills", "Flood risk", "Orchards"],
     facts: [
-      { label: "Center", value: "Namangan" },
-      { label: "Landscape", value: "Foothills and irrigated valley" },
-      { label: "Showcase angle", value: "Regional identity at small scale" },
-      { label: "Suggested export", value: "06-namangan.jpg" }
-    ],
-    highlights: [
-      "Use contour or relief hints if your source maps make the foothill edge clear.",
-      "This region benefits from a closer zoom than the western desert regions.",
-      "Keep the story grounded in everyday geography rather than national-scale infrastructure." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Foothills and valleys dropping toward one of Central Asia's most settled plains."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "Mountain-fed streams and canals link high catchments to intensive valley agriculture."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Continental with sharp local gradients between foothill relief and warm lowlands."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "A strong plate for connecting flashier mountain hydrology to steady irrigation demand."
+      }
     ]
   },
   {
     id: "navoiy",
     name: "Navoiy Region",
-    caption: "Mining, desert infrastructure, and long-distance spatial scale.",
+    uz: "Navoiy viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 700 000",
+    caption: "Desert scale, lower Zarafshan threads, and mining-era water demand.",
     map: "assets/maps/07-navoiy.jpg",
-    palette: ["#cc7f3a", "#2f7083", "#efd88d"],
+    palette: ["#cb7f3e", "#2f7082", "#e2cf86"],
     summary:
-      "Use Navoiy to communicate scale. Distances, extractive landscapes, and industrial nodes matter here, so the map should feel expansive rather than crowded.",
-    themes: ["Mining", "Desert scale", "Industry"],
+      "Navoiy is a plate about scale. Long dry distances, extractive industry, and sparse settlement make every river reach, canal branch, and reservoir edge legible. It is the place to show how scarce water is stretched across the Kyzylkum and how industrial corridors rely on thin hydrological lines.",
+    themes: ["Kyzylkum", "Mining", "Sparse hydrology", "Industrial demand"],
     facts: [
-      { label: "Center", value: "Navoiy" },
-      { label: "Landscape", value: "Desert and industrial corridors" },
-      { label: "Showcase angle", value: "Large-scale infrastructure in sparse terrain" },
-      { label: "Suggested export", value: "07-navoiy.jpg" }
-    ],
-    highlights: [
-      "Use very few labels and let landmass and infrastructure spacing do the work.",
-      "This is a strong region for overlays on resources, rail, or energy systems.",
-      "A single distance metric can help visitors understand the region's scale quickly." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "A vast desert interior punctuated by mining districts and transport corridors."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The lower Zarafshan and managed reservoirs are sparse but strategically critical."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Hyper-arid lowland conditions with severe summer heat and very low rainfall."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Show how little water is available relative to the spatial scale of demand."
+      }
     ]
   },
   {
     id: "qashqadaryo",
     name: "Qashqadaryo Region",
-    caption: "Mountain gateways, energy assets, and agricultural plains.",
+    uz: "Qashqadaryo viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 450 000",
+    caption: "Hisar headwaters, Qarshi plain irrigation, and drought-sensitive runoff.",
     map: "assets/maps/08-qashqadaryo.jpg",
-    palette: ["#b85a31", "#5b8b4a", "#f0ca7b"],
+    palette: ["#b85c32", "#5a8b4d", "#dfbb73"],
     summary:
-      "Frame Qashqadaryo as a region of contrast: mountain approaches in the east, open plains to the west, and major energy and agricultural systems running through both.",
-    themes: ["Energy", "Mountains", "Plains"],
+      "Qashqadaryo runs from the Hisar mountains down into the Qarshi steppe, letting one plate hold very different climate zones together. Mountain runoff, storage, irrigation demand, and energy development all compete for attention here, making it a clear case study in how upstream snow and downstream drought are connected.",
+    themes: ["Hisar", "Qarshi steppe", "Irrigation", "Drought"],
     facts: [
-      { label: "Center", value: "Qarshi" },
-      { label: "Landscape", value: "Foothills, plains, river valleys" },
-      { label: "Showcase angle", value: "Contrast between terrain and extraction" },
-      { label: "Suggested export", value: "08-qashqadaryo.jpg" }
-    ],
-    highlights: [
-      "Make the east-west contrast obvious with color blocks or relief cues.",
-      "If the story includes energy, keep symbols sparse so the terrain remains readable.",
-      "The region works well as a bridge between environmental and industrial narratives." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "High eastern relief descending toward open plains and irrigated agricultural belts."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Qashqadaryo system depends on mountain runoff and storage before fading westward."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Cooler uplands contrast with very hot, dry lowlands vulnerable to drought stress."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Read it as a full headwaters-to-steppe story inside a single regional plate."
+      }
     ]
   },
   {
     id: "samarqand",
     name: "Samarqand Region",
-    caption: "Historic urban gravity, river valleys, and cultivated heartland.",
+    uz: "Samarqand viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 350 000",
+    caption: "Zarafshan basin agriculture, plateau valleys, and heritage under water pressure.",
     map: "assets/maps/09-samarqand.jpg",
-    palette: ["#cf6f3b", "#2c7b83", "#f1bf72"],
+    palette: ["#cb6f3c", "#2e7b83", "#ddb76f"],
     summary:
-      "Samarqand can carry both heritage and geography at once: a major cultural center set inside productive valleys and connected landscapes across central Uzbekistan.",
-    themes: ["Heritage", "Valleys", "Regional hub"],
+      "Samarqand is centered on the Zarafshan basin, where a productive agricultural heartland surrounds one of Central Asia's best-known cities. Springs, canals, and river-fed cultivation make the plate readable as both a heritage landscape and a basin-level water system under growing climatic and demographic pressure.",
+    themes: ["Zarafshan", "Heritage landscape", "Canals", "Agriculture"],
     facts: [
-      { label: "Center", value: "Samarqand" },
-      { label: "Landscape", value: "Valleys and cultivated plateau" },
-      { label: "Showcase angle", value: "Cultural magnet in a productive landscape" },
-      { label: "Suggested export", value: "09-samarqand.jpg" }
-    ],
-    highlights: [
-      "This region can tolerate a denser label set because the name recognition is strong.",
-      "Use one narrative block for heritage and another for current regional function.",
-      "Avoid making the city the whole story; the surrounding landscape matters too." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Cultivated valleys and plateaus structured by the Zarafshan corridor."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Zarafshan river, springs, and canal networks sustain orchards and settlements."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "A continental interior climate with hot summers and rising irrigation demand."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Ideal for showing how cultural landscapes are also managed hydrological landscapes."
+      }
     ]
   },
   {
     id: "sirdaryo",
     name: "Sirdaryo Region",
-    caption: "Compact plains shaped by irrigation and corridor infrastructure.",
+    uz: "Sirdaryo viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 250 000",
+    caption: "Hungry Steppe irrigation geometry and single-river dependency.",
     map: "assets/maps/10-sirdaryo.jpg",
-    palette: ["#c96b3f", "#318571", "#e8d58b"],
+    palette: ["#c96d3f", "#338371", "#dccc80"],
     summary:
-      "Sirdaryo is ideal for a concise map story: compact territory, strong irrigation patterns, and major transport lines that make spatial logic easy to read on screen.",
-    themes: ["Irrigation", "Transport", "Compact scale"],
+      "Sirdaryo is one of the clearest water-management plates in the atlas. It occupies a low, compact part of the Hungry Steppe where the Syr Darya and major irrigation structures dominate land use, making salinity, drainage, and single-river dependency visible almost at a glance.",
+    themes: ["Syr Darya", "Hungry Steppe", "Salinity", "Drainage"],
     facts: [
-      { label: "Center", value: "Gulistan" },
-      { label: "Landscape", value: "Irrigated plains" },
-      { label: "Showcase angle", value: "Efficiency and corridor planning" },
-      { label: "Suggested export", value: "10-sirdaryo.jpg" }
-    ],
-    highlights: [
-      "Use this region when you want a fast, legible example of irrigation geometry.",
-      "Minimal annotation is enough because the spatial pattern is already clean.",
-      "A route overlay can add energy without making the panel feel crowded." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Flat, low-lying plains cultivated almost continuously from edge to edge."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Syr Darya and irrigation channels are the backbone of every agricultural zone."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Dry continental conditions with strong evaporation and exposed winter winds."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "A concise study in what near-total dependence on one river looks like on the ground."
+      }
     ]
   },
   {
     id: "surxondaryo",
     name: "Surxondaryo Region",
-    caption: "Southern valleys, mountain borders, and cross-border geography.",
+    uz: "Surxondaryo viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 600 000",
+    caption: "Warm southern valleys, Amu Darya frontage, and mountain-fed extremes.",
     map: "assets/maps/11-surxondaryo.jpg",
-    palette: ["#da7432", "#44825c", "#f0c574"],
+    palette: ["#d87535", "#45815f", "#e3bd73"],
     summary:
-      "Use Surxondaryo to show the southern threshold of the country: warm valleys, mountain edges, archaeological depth, and border-facing geography.",
-    themes: ["Borders", "Mountains", "Archaeology"],
+      "Surxondaryo is Uzbekistan's hottest regional plate. Sheltered valleys, mountain headwaters, and Amu Darya border reaches combine to produce long hot growing seasons and strong contrasts between irrigated corridors and surrounding dry slopes, making it an effective climate-extremes chapter inside the atlas.",
+    themes: ["Amu Darya", "Heat extremes", "Mountain runoff", "Border valleys"],
     facts: [
-      { label: "Center", value: "Termiz" },
-      { label: "Landscape", value: "Valleys, mountains, borderlands" },
-      { label: "Showcase angle", value: "Southern gateway" },
-      { label: "Suggested export", value: "11-surxondaryo.jpg" }
-    ],
-    highlights: [
-      "Use relief or shaded terrain if your atlas source has it, because topography is central here.",
-      "Cross-border position is important, but the region should still read as internally coherent.",
-      "A short note on archaeology or ancient routes adds depth without clutter." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "A warm southern basin opening toward the Amu Darya beneath high mountain walls."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Surxondaryo river, tributary catchments, and the Amu Darya border flow."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "The country's warmest climate, with intense summer heat and long growing seasons."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Use the plate to discuss how a hotter future may expand southward climate pressures."
+      }
     ]
   },
   {
     id: "tashkent-region",
     name: "Tashkent Region",
-    caption: "Mountain recreation, reservoirs, and metropolitan supply systems.",
+    uz: "Toshkent viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 500 000",
+    caption: "Mountain snowpack, Charvak storage, and metropolitan water supply.",
     map: "assets/maps/12-tashkent-region.jpg",
-    palette: ["#d56539", "#2a728f", "#d6e69a"],
+    palette: ["#d56839", "#2b728d", "#d7e393"],
     summary:
-      "Present the wider Tashkent region as the metropolitan landscape behind the capital: reservoirs, recreation zones, industry, and the mountain backdrop that shapes movement and water.",
-    themes: ["Water", "Metropolitan edge", "Mountains"],
+      "Tashkent region links the western Tien Shan foothills to the country's largest metropolitan concentration. Snowpack, reservoirs, hydropower, foothill hazard zones, and dense water demand all appear together here, so the plate works as a bridge between mountain climate processes and lowland urban consumption.",
+    themes: ["Charvak", "Snowpack", "Hydropower", "Metropolitan supply"],
     facts: [
-      { label: "Center", value: "Nurafshon" },
-      { label: "Landscape", value: "Reservoirs, foothills, industrial belts" },
-      { label: "Showcase angle", value: "Support geography for the capital" },
-      { label: "Suggested export", value: "12-tashkent-region.jpg" }
-    ],
-    highlights: [
-      "Use reservoir shapes and mountain edges as the main visual signatures.",
-      "This region pairs well with the separate Tashkent City panel for a metro story.",
-      "Do not overload the map with small settlements if the audience is standing at a distance." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "Plains and industrial belts rising sharply into reservoir valleys and mountain slopes."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The Chirchiq system and Charvak reservoir store and deliver water to the capital region."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Cooler, wetter highlands contrast with warmer and drier lowland districts."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "A strong plate for showing mountain snow acting as a water bank for cities below."
+      }
     ]
   },
   {
     id: "tashkent-city",
     name: "Tashkent City",
-    caption: "A metropolitan node distilled into a compact, high-contrast panel.",
+    uz: "Toshkent shahri",
+    type: "Urban climate plate",
+    scale: "1 : 100 000",
+    caption: "Urban heat, canal-fed green structure, and metropolitan water demand.",
     map: "assets/maps/13-tashkent-city.jpg",
-    palette: ["#f09849", "#327e9f", "#f4d7a1"],
+    palette: ["#ea964b", "#327f9f", "#f0d8a2"],
     summary:
-      "Treat the capital as its own visual language: denser, more graphic, and focused on mobility, institutions, public space, and urban legibility rather than broad land cover.",
-    themes: ["Capital city", "Mobility", "Institutions"],
+      "Tashkent City deserves its own plate because the climate story shifts from regional basins to urban surfaces. Canal-fed greenery, parks, dense transport networks, and heat-absorbing built fabric create a compact map for discussing urban heat, stormwater, and how water softens life inside the capital.",
+    themes: ["Urban heat island", "Canals", "Green infrastructure", "Stormwater"],
     facts: [
-      { label: "Status", value: "Independent city" },
-      { label: "Landscape", value: "Urban core and green structure" },
-      { label: "Showcase angle", value: "National decision-making center" },
-      { label: "Suggested export", value: "13-tashkent-city.jpg" }
-    ],
-    highlights: [
-      "Use tighter framing than the regional maps so the city feels intentionally distinct.",
-      "A transit or civic overlay can make the panel feel more metropolitan immediately.",
-      "Balance hard infrastructure with parks or waterways to avoid a flat urban read." 
+      {
+        key: "terrain",
+        label: "Urban fabric",
+        value: "A compact metropolitan core with major boulevards, parks, and engineered waterways."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "Canals and managed green-space irrigation help cool and structure the city."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Urban heat island effects intensify summer discomfort and peak water demand."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "Show climate not just as weather, but as a condition shaped by city form and water."
+      }
     ]
   },
   {
     id: "xorazm",
     name: "Xorazm Region",
-    caption: "Historic irrigated landscapes at the edge of the lower Amu Darya.",
+    uz: "Xorazm viloyati",
+    type: "Climate and water plate",
+    scale: "1 : 250 000",
+    caption: "Lower Amu Darya irrigation geometry and oasis-desert contrast.",
     map: "assets/maps/14-xorazm.jpg",
-    palette: ["#d37f32", "#2d8a78", "#efe194"],
+    palette: ["#d27d35", "#2d8a78", "#e5da8f"],
     summary:
-      "Xorazm closes the atlas well: strong irrigation geometry, deep historic continuity, and an immediately recognizable contrast between cultivated land and surrounding aridity.",
-    themes: ["Irrigation", "Lower Amu Darya", "Historic landscape"],
+      "Xorazm closes the atlas with one of its most legible water landscapes. Irrigation geometry, drainage lines, and oasis settlement stand out sharply against surrounding aridity, making the region an ideal final chapter on how engineered water networks support life on the lower Amu Darya.",
+    themes: ["Lower Amu Darya", "Oasis geometry", "Drainage", "Salinity"],
     facts: [
-      { label: "Center", value: "Urgench" },
-      { label: "Landscape", value: "Irrigated oasis and arid fringe" },
-      { label: "Showcase angle", value: "Geometry of water and settlement" },
-      { label: "Suggested export", value: "14-xorazm.jpg" }
-    ],
-    highlights: [
-      "Use irrigation patterns as the main visual hook; they read clearly from a distance.",
-      "Heritage context works especially well when paired with modern land-use imagery.",
-      "The map can serve as a satisfying final frame because the contrast is visually strong." 
+      {
+        key: "terrain",
+        label: "Terrain",
+        value: "A low oasis plain bounded by desert margins and engineered field geometry."
+      },
+      {
+        key: "water",
+        label: "Water",
+        value: "The lower Amu Darya and dense irrigation-drainage grids shape every settlement belt."
+      },
+      {
+        key: "climate",
+        label: "Climate signal",
+        value: "Hot, dry summers with salinity and drainage pressure across cultivated land."
+      },
+      {
+        key: "focus",
+        label: "Atlas lens",
+        value: "A final plate for reading water as visible geometry rather than hidden infrastructure."
+      }
     ]
   }
 ];

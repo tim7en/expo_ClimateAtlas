@@ -1,6 +1,6 @@
 # Uzbekistan Atlas
 
-A kiosk-friendly static atlas for pavilion and showcase use. The app itself is plain HTML, CSS, and JavaScript. Python is only used for support tooling: extracting map images from PDFs and bundling the development files into a single offline HTML deliverable.
+An offline climate atlas for pavilion screens, kiosks, and local installs. The app itself is plain HTML, CSS, and JavaScript. Python is only used for support tooling: extracting map images from PDFs and bundling the split source files into a single offline HTML deliverable.
 
 ## Project structure
 
@@ -26,8 +26,49 @@ uzbekistan-atlas/
 1. Open the folder in VS Code.
 2. Install the recommended extensions: Live Server and Prettier.
 3. Right-click `index.html` and choose **Open with Live Server**.
-4. Edit `js/regions.js` for text content, `css/style.css` for presentation, and `js/app.js` for interaction.
+4. Edit `js/regions.js` for atlas content, `css/style.css` for presentation, and `js/app.js` for interaction.
 5. Keep the production bundle out of the edit loop. It is generated from the source files when you are ready to export.
+
+## Atlas experience
+
+The current scaffold now ships as a scene-based album UI:
+
+1. A cover scene introduces the atlas.
+2. An album scene shows one climate plate at a time with page-turn navigation.
+3. A searchable contents scene lets users jump straight to a region.
+
+Core controls:
+
+1. Drag to pan the loaded map plate.
+2. Scroll, double-click, or use the zoom controls to zoom.
+3. Open **Map notes** for the climate and water summary plus glossary.
+4. Use the top-bar **Contents** button or press `C` to open the searchable plate grid.
+5. Use the top-bar **Moderator** button or press `M` to open the moderator workspace.
+6. Use the arrow keys to move between plates, `I` to toggle notes, `F` for fullscreen, and `Esc` to close overlays.
+
+## Moderator workflow
+
+The atlas now includes a moderator workspace for content handoff.
+
+1. Open **Moderator** from the top bar.
+2. Choose a region.
+3. Attach the source PDF for that region, write a caption, and update the long description.
+4. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
+5. Export the handoff JSON and give it together with the original PDF files to your associate.
+
+To integrate a handoff back into the source project:
+
+```powershell
+python tools/apply_moderator_handoff.py path\to\moderator-handoff.json
+python tools/extract_maps.py pdfs --output-dir assets/maps
+python tools/build.py
+```
+
+Notes:
+
+1. The browser can preview a selected PDF during the current session, but it does not write the PDF into the repository by itself.
+2. The exported handoff JSON stores the text edits and recorded PDF filenames; hand over the real PDF files alongside it.
+3. The importer writes the draft data into `js/moderator-drafts.js`, which overlays the base atlas content without forcing you to edit `js/regions.js` manually.
 
 ## Python tooling
 
@@ -82,6 +123,6 @@ Empty asset folders include `.gitkeep` placeholders so Git will preserve them.
 
 ## Notes
 
-- The starter UI already handles missing map images and shows an on-screen fallback instead of breaking.
-- `js/regions.js` ships with English placeholder content for all 14 administrative units, so you can start editing text immediately.
+- The atlas UI handles missing map images and shows on-screen fallbacks in both the main plate and the contents grid.
+- `js/regions.js` now ships with climate-and-water-focused placeholder content for all 14 administrative units.
 - The build script inlines CSS, JavaScript, fonts, and any referenced local assets into one HTML file when those assets exist.
