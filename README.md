@@ -43,7 +43,7 @@ Core controls:
 2. Scroll, double-click, or use the zoom controls to zoom.
 3. Open **Map notes** for the climate and water summary plus glossary.
 4. Use the top-bar **Contents** button or press `C` to open the searchable plate grid.
-5. Use the top-bar **Moderator** button or press `M` to open the moderator workspace.
+5. Use the cover-screen **Open moderator** button, the top-bar **Moderator** button, or press `M` to open the moderator workspace.
 6. Use the arrow keys to move between plates, `I` to toggle notes, `F` for fullscreen, and `Esc` to close overlays.
 
 ## Moderator workflow
@@ -55,6 +55,8 @@ The atlas now includes a moderator workspace for content handoff.
 3. Attach the source PDF for that region, write a caption, and update the long description.
 4. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
 5. Export the handoff JSON and give it together with the original PDF files to your associate.
+
+The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
 
 Persistence details:
 

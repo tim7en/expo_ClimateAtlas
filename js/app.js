@@ -54,6 +54,7 @@ const elements = {
   metricRivers: document.querySelector("#metric-rivers"),
   metricSea: document.querySelector("#metric-sea"),
   btnBegin: document.querySelector("#btnBegin"),
+  btnOpenModerator: document.querySelector("#btnOpenModerator"),
   btnContents: document.querySelector("#btnContents"),
   btnModerator: document.querySelector("#btnModerator"),
   btnFull: document.querySelector("#btnFull"),
@@ -320,6 +321,10 @@ function showScene(sceneName) {
 function syncModeratorAvailability() {
   if (elements.btnModerator) {
     elements.btnModerator.hidden = !MODERATOR_ENABLED;
+  }
+
+  if (elements.btnOpenModerator) {
+    elements.btnOpenModerator.hidden = !MODERATOR_ENABLED;
   }
 
   if (elements.moderator) {
@@ -1203,6 +1208,11 @@ function wireViewportInteractions() {
 
 function wireEvents() {
   elements.btnBegin.addEventListener("click", beginAtlas);
+  if (elements.btnOpenModerator) {
+    elements.btnOpenModerator.addEventListener("click", () => {
+      openModerator(state.moderatorRegionId || REGIONS[state.index]?.id || REGIONS[0]?.id || "");
+    });
+  }
   elements.btnContents.addEventListener("click", () => {
     if (state.currentScene === "contents") {
       closeContents();
