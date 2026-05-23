@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Uzbekistan Showcase Atlas</title>
+    <meta
+      name="description"
+      content="A static showcase atlas for kiosk, pavilion, and exhibition displays."
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-left"></div>
+      <div class="ambient ambient-right"></div>
+
+      <header class="hero">
+        <p class="eyebrow">Showcase atlas / kiosk-ready</p>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <h1>Uzbekistan Atlas</h1>
+            <p>
+              A lightweight front-end for exhibition screens, pavilion installations,
+              and offline storytelling. Develop in separate source files, then bundle
+              the final kiosk deliverable into one self-contained HTML file.
+            </p>
+          </div>
+
+          <div class="hero-tools">
+            <label class="search-field" for="region-search">
+              <span>Find a region</span>
+              <input
+                id="region-search"
+                name="region-search"
+                type="search"
+                placeholder="Search by name, theme, or landscape"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="hero-actions">
+              <button id="autoplay-toggle" class="action-button" type="button">
+                Start autoplay
+              </button>
+              <button id="next-region" class="action-button action-button--ghost" type="button">
+                Next region
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="atlas-layout">
+        <aside class="region-rail" aria-label="Atlas regions">
+          <div class="rail-heading">
+            <div>
+              <p class="section-label">Atlas index</p>
+              <h2>Regions</h2>
+            </div>
+            <p id="result-count" class="result-count"></p>
+          </div>
+          <div id="region-list" class="region-list"></div>
+        </aside>
+
+        <section class="showcase-panel" aria-live="polite">
+          <div class="showcase-header">
+            <div>
+              <p id="region-index" class="section-label">Region 01</p>
+              <h2 id="region-name">Loading atlas...</h2>
+              <p id="region-caption" class="region-caption"></p>
+            </div>
+            <div id="theme-pills" class="theme-pills"></div>
+          </div>
+
+          <div class="showcase-grid">
+            <article class="map-panel">
+              <div id="map-stage" class="map-stage" data-ready="false">
+                <img id="map-image" alt="" hidden />
+                <div id="map-placeholder" class="map-placeholder">
+                  <p class="placeholder-label">Map preview</p>
+                  <h3 id="placeholder-title">Add curated JPG maps</h3>
+                  <p id="placeholder-copy">
+                    Export atlas pages into assets/maps, then keep the file names in
+                    js/regions.js aligned with the curated set.
+                  </p>
+                </div>
+              </div>
+              <p id="map-note" class="map-note"></p>
+            </article>
+
+            <div class="content-stack">
+              <article class="story-card panel-card">
+                <p class="section-label">Narrative focus</p>
+                <p id="region-summary" class="story-copy"></p>
+              </article>
+
+              <article class="panel-card">
+                <div class="card-heading">
+                  <p class="section-label">Quick facts</p>
+                  <h3>What to show on screen</h3>
+                </div>
+                <div id="facts-grid" class="facts-grid"></div>
+              </article>
+
+              <article class="panel-card">
+                <div class="card-heading">
+                  <p class="section-label">Highlights</p>
+                  <h3>Suggested storytelling hooks</h3>
+                </div>
+                <ul id="highlights-list" class="highlights-list"></ul>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="js/regions.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

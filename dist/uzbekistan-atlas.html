@@ -1,0 +1,1182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Uzbekistan Showcase Atlas</title>
+    <meta
+      name="description"
+      content="A static showcase atlas for kiosk, pavilion, and exhibition displays."
+    />
+    <style>
+:root {
+  --ink: #f6eee3;
+  --muted: rgba(246, 238, 227, 0.74);
+  --surface: rgba(14, 26, 33, 0.78);
+  --surface-strong: rgba(11, 21, 27, 0.94);
+  --line: rgba(246, 238, 227, 0.12);
+  --shadow: 0 24px 80px rgba(3, 8, 12, 0.32);
+  --accent-a: #df6d2f;
+  --accent-b: #2e7f7f;
+  --accent-c: #f1bf72;
+  --font-display: "Sora", "Bahnschrift", sans-serif;
+  --font-body: "Public Sans", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(223, 109, 47, 0.24), transparent 32%),
+    radial-gradient(circle at right 20%, rgba(46, 127, 127, 0.2), transparent 28%),
+    linear-gradient(135deg, #0d1b22 0%, #14242b 38%, #10171d 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+  padding: 32px;
+  overflow: hidden;
+}
+
+.ambient {
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 50%;
+  filter: blur(28px);
+  opacity: 0.48;
+  pointer-events: none;
+}
+
+.ambient-left {
+  top: -10rem;
+  left: -10rem;
+  background: radial-gradient(circle, rgba(223, 109, 47, 0.42), transparent 65%);
+}
+
+.ambient-right {
+  right: -8rem;
+  bottom: -14rem;
+  background: radial-gradient(circle, rgba(46, 127, 127, 0.34), transparent 64%);
+}
+
+.hero,
+.region-rail,
+.showcase-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.hero {
+  display: grid;
+  gap: 22px;
+  margin-bottom: 28px;
+}
+
+.eyebrow,
+.section-label,
+.placeholder-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.hero-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.95fr);
+  align-items: end;
+}
+
+.hero-copy h1 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 6vw, 5.8rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.hero-copy p {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 1.04rem;
+  line-height: 1.72;
+  color: var(--muted);
+}
+
+.hero-tools {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(10, 18, 24, 0.58);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.search-field {
+  display: grid;
+  gap: 10px;
+}
+
+.search-field span {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.search-field input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(246, 238, 227, 0.14);
+  border-radius: 16px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.search-field input:focus {
+  outline: 2px solid rgba(241, 191, 114, 0.5);
+  outline-offset: 2px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.action-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  color: #14242b;
+  background: linear-gradient(135deg, var(--accent-c), #fff0cb);
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(241, 191, 114, 0.18);
+}
+
+.action-button--ghost {
+  color: var(--ink);
+  background: rgba(246, 238, 227, 0.08);
+  border: 1px solid var(--line);
+}
+
+.atlas-layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.region-rail,
+.showcase-panel {
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(10, 18, 24, 0.64);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.region-rail {
+  padding: 22px;
+}
+
+.rail-heading,
+.showcase-header,
+.card-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rail-heading h2,
+.showcase-header h2,
+.card-heading h3 {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.result-count,
+.region-caption,
+.story-copy,
+.map-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.68;
+}
+
+.region-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.region-button {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  color: inherit;
+  border: 1px solid rgba(246, 238, 227, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.region-button:hover,
+.region-button.is-active {
+  transform: translateX(2px);
+  border-color: rgba(241, 191, 114, 0.32);
+  background: linear-gradient(135deg, rgba(223, 109, 47, 0.18), rgba(46, 127, 127, 0.08));
+}
+
+.region-button strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.region-button span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.showcase-panel {
+  padding: 24px;
+}
+
+.showcase-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.92fr);
+  margin-top: 24px;
+}
+
+.theme-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 10px;
+}
+
+.theme-pills span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(246, 238, 227, 0.08);
+  color: var(--ink);
+  border: 1px solid rgba(246, 238, 227, 0.1);
+  font-size: 0.86rem;
+}
+
+.map-panel,
+.panel-card {
+  border-radius: 24px;
+  border: 1px solid rgba(246, 238, 227, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.map-panel {
+  padding: 18px;
+}
+
+.map-stage {
+  position: relative;
+  min-height: 520px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 22px;
+  background:
+    linear-gradient(140deg, rgba(8, 17, 21, 0.88), rgba(17, 30, 36, 0.6)),
+    radial-gradient(circle at top right, rgba(223, 109, 47, 0.18), transparent 35%),
+    radial-gradient(circle at bottom left, rgba(46, 127, 127, 0.2), transparent 44%);
+}
+
+.map-stage::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(246, 238, 227, 0.08);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.map-stage img {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 820px);
+  max-height: 76vh;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.32));
+}
+
+.map-placeholder {
+  position: relative;
+  z-index: 1;
+  max-width: 30rem;
+  padding: 32px;
+  text-align: center;
+}
+
+.map-placeholder h3 {
+  margin: 10px 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 2vw, 2.4rem);
+}
+
+.map-placeholder p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.72;
+}
+
+.content-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.panel-card {
+  padding: 20px;
+}
+
+.story-card {
+  background: linear-gradient(155deg, rgba(223, 109, 47, 0.16), rgba(46, 127, 127, 0.08));
+}
+
+.story-copy {
+  margin-top: 12px;
+  font-size: 1.02rem;
+}
+
+.facts-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.fact-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(246, 238, 227, 0.08);
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.fact-card dt {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.fact-card dd {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.highlights-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 16px 0 0;
+  list-style: none;
+}
+
+.highlights-list li {
+  position: relative;
+  padding: 14px 16px 14px 48px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(246, 238, 227, 0.08);
+  line-height: 1.6;
+}
+
+.highlights-list li::before {
+  content: "";
+  position: absolute;
+  inset: 19px auto auto 18px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-a), var(--accent-c));
+  box-shadow: 0 0 0 6px rgba(223, 109, 47, 0.12);
+}
+
+.empty-state {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  border: 1px dashed rgba(246, 238, 227, 0.14);
+}
+
+@media (max-width: 1100px) {
+  .page-shell {
+    padding: 20px;
+  }
+
+  .hero-grid,
+  .atlas-layout,
+  .showcase-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-pills {
+    justify-content: start;
+  }
+
+  .map-stage {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-shell {
+    padding: 16px;
+  }
+
+  .hero-tools,
+  .region-rail,
+  .showcase-panel,
+  .panel-card,
+  .map-panel {
+    border-radius: 22px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.6rem, 14vw, 4rem);
+  }
+
+  .facts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .region-button:hover,
+  .region-button.is-active {
+    transform: none;
+  }
+
+  .map-stage {
+    min-height: 340px;
+  }
+}
+
+</style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-left"></div>
+      <div class="ambient ambient-right"></div>
+
+      <header class="hero">
+        <p class="eyebrow">Showcase atlas / kiosk-ready</p>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <h1>Uzbekistan Atlas</h1>
+            <p>
+              A lightweight front-end for exhibition screens, pavilion installations,
+              and offline storytelling. Develop in separate source files, then bundle
+              the final kiosk deliverable into one self-contained HTML file.
+            </p>
+          </div>
+
+          <div class="hero-tools">
+            <label class="search-field" for="region-search">
+              <span>Find a region</span>
+              <input
+                id="region-search"
+                name="region-search"
+                type="search"
+                placeholder="Search by name, theme, or landscape"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="hero-actions">
+              <button id="autoplay-toggle" class="action-button" type="button">
+                Start autoplay
+              </button>
+              <button id="next-region" class="action-button action-button--ghost" type="button">
+                Next region
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="atlas-layout">
+        <aside class="region-rail" aria-label="Atlas regions">
+          <div class="rail-heading">
+            <div>
+              <p class="section-label">Atlas index</p>
+              <h2>Regions</h2>
+            </div>
+            <p id="result-count" class="result-count"></p>
+          </div>
+          <div id="region-list" class="region-list"></div>
+        </aside>
+
+        <section class="showcase-panel" aria-live="polite">
+          <div class="showcase-header">
+            <div>
+              <p id="region-index" class="section-label">Region 01</p>
+              <h2 id="region-name">Loading atlas...</h2>
+              <p id="region-caption" class="region-caption"></p>
+            </div>
+            <div id="theme-pills" class="theme-pills"></div>
+          </div>
+
+          <div class="showcase-grid">
+            <article class="map-panel">
+              <div id="map-stage" class="map-stage" data-ready="false">
+                <img id="map-image" alt="" hidden />
+                <div id="map-placeholder" class="map-placeholder">
+                  <p class="placeholder-label">Map preview</p>
+                  <h3 id="placeholder-title">Add curated JPG maps</h3>
+                  <p id="placeholder-copy">
+                    Export atlas pages into assets/maps, then keep the file names in
+                    js/regions.js aligned with the curated set.
+                  </p>
+                </div>
+              </div>
+              <p id="map-note" class="map-note"></p>
+            </article>
+
+            <div class="content-stack">
+              <article class="story-card panel-card">
+                <p class="section-label">Narrative focus</p>
+                <p id="region-summary" class="story-copy"></p>
+              </article>
+
+              <article class="panel-card">
+                <div class="card-heading">
+                  <p class="section-label">Quick facts</p>
+                  <h3>What to show on screen</h3>
+                </div>
+                <div id="facts-grid" class="facts-grid"></div>
+              </article>
+
+              <article class="panel-card">
+                <div class="card-heading">
+                  <p class="section-label">Highlights</p>
+                  <h3>Suggested storytelling hooks</h3>
+                </div>
+                <ul id="highlights-list" class="highlights-list"></ul>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+window.REGIONS = [
+  {
+    id: "karakalpakstan",
+    name: "Republic of Karakalpakstan",
+    caption: "Aral Sea recovery, delta landscapes, and cultural memory.",
+    map: "assets/maps/01-karakalpakstan.jpg",
+    palette: ["#df6d2f", "#a74622", "#f2c078"],
+    summary:
+      "Frame the northern frontier through restoration: desertified seabed, resilient delta settlements, and museum-led narratives that connect ecology with identity.",
+    themes: ["Restoration", "Aral Sea", "Museum culture"],
+    facts: [
+      { label: "Capital", value: "Nukus" },
+      { label: "Landscape", value: "Delta, desert, plateau" },
+      { label: "Showcase angle", value: "Resilience after environmental shock" },
+      { label: "Suggested export", value: "01-karakalpakstan.jpg" }
+    ],
+    highlights: [
+      "Open with aerial atlas imagery that contrasts former shoreline and current land use.",
+      "Pair the map with one short story on dust mitigation, water restoration, or wetland recovery.",
+      "Use cultural references from Nukus to avoid presenting the region only through crisis." 
+    ]
+  },
+  {
+    id: "andijan",
+    name: "Andijan Region",
+    caption: "Dense settlement, manufacturing, and valley-scale agriculture.",
+    map: "assets/maps/02-andijan.jpg",
+    palette: ["#c65f2f", "#4f8f75", "#efca84"],
+    summary:
+      "Present Andijan as a compact, intensely productive landscape where industry, transport, and irrigated agriculture sit close together inside the Fergana Valley.",
+    themes: ["Industry", "Agriculture", "Valley mobility"],
+    facts: [
+      { label: "Center", value: "Andijan" },
+      { label: "Landscape", value: "Valley floor and foothills" },
+      { label: "Showcase angle", value: "High density and efficient land use" },
+      { label: "Suggested export", value: "02-andijan.jpg" }
+    ],
+    highlights: [
+      "Use callouts on settlement density and transport corridors across the eastern valley.",
+      "Contrast industrial clusters with orchards and irrigated farmland in the same frame.",
+      "Keep labels large and simple because this is one of the visually busiest regions." 
+    ]
+  },
+  {
+    id: "bukhara",
+    name: "Bukhara Region",
+    caption: "Historic oasis networks and desert-edge infrastructure.",
+    map: "assets/maps/03-bukhara.jpg",
+    palette: ["#d38938", "#2b7770", "#f2d08d"],
+    summary:
+      "Anchor Bukhara around the oasis idea: historic urban nodes, caravan-era routes, and modern energy and logistics systems extending into arid space.",
+    themes: ["Heritage", "Oasis systems", "Desert logistics"],
+    facts: [
+      { label: "Center", value: "Bukhara" },
+      { label: "Landscape", value: "Oasis and surrounding desert" },
+      { label: "Showcase angle", value: "Historic continuity in an arid setting" },
+      { label: "Suggested export", value: "03-bukhara.jpg" }
+    ],
+    highlights: [
+      "Use the oasis footprint as the visual anchor before adding any thematic overlays.",
+      "Reserve one fact card for heritage value and one for present-day logistics or energy routes.",
+      "Warm earth tones work especially well for this region in a pavilion setting." 
+    ]
+  },
+  {
+    id: "fergana",
+    name: "Fergana Region",
+    caption: "A fertile valley landscape with layered urban and industrial networks.",
+    map: "assets/maps/04-fergana.jpg",
+    palette: ["#be5d40", "#317a6b", "#dfe090"],
+    summary:
+      "Show Fergana as a tightly woven patchwork of settlements, farmland, and manufacturing, where geography and population density amplify every planning decision.",
+    themes: ["Population", "Industry", "Irrigation"],
+    facts: [
+      { label: "Center", value: "Fergana" },
+      { label: "Landscape", value: "Valley basin" },
+      { label: "Showcase angle", value: "Intensity of land use" },
+      { label: "Suggested export", value: "04-fergana.jpg" }
+    ],
+    highlights: [
+      "Use simplified administrative boundaries so the valley shape stays legible from a distance.",
+      "If you add charts later, population density and cultivated land are natural pairings.",
+      "Treat the region as part of a wider valley story, not as an isolated map panel." 
+    ]
+  },
+  {
+    id: "jizzakh",
+    name: "Jizzakh Region",
+    caption: "Steppe corridors, mountain edges, and strategic central positioning.",
+    map: "assets/maps/05-jizzakh.jpg",
+    palette: ["#d07137", "#5e8c56", "#efc96e"],
+    summary:
+      "Jizzakh works well as a transition region: central, connective, and geographically varied, with steppe openness giving way to mountain foothills and reservoirs.",
+    themes: ["Connectivity", "Reservoirs", "Steppe"],
+    facts: [
+      { label: "Center", value: "Jizzakh" },
+      { label: "Landscape", value: "Steppe, foothills, reservoirs" },
+      { label: "Showcase angle", value: "Central corridor between regions" },
+      { label: "Suggested export", value: "05-jizzakh.jpg" }
+    ],
+    highlights: [
+      "Use broad gradient shading to emphasize open land rather than dense point labels.",
+      "Highlight transport links that make the region read as connective rather than peripheral.",
+      "A water-management callout can balance the otherwise open visual composition." 
+    ]
+  },
+  {
+    id: "namangan",
+    name: "Namangan Region",
+    caption: "Foothill settlements, craft traditions, and irrigated production.",
+    map: "assets/maps/06-namangan.jpg",
+    palette: ["#cb6334", "#2e8f7b", "#f0bc6f"],
+    summary:
+      "Position Namangan around fine-grained landscape transitions: valley cultivation below, foothill settlement patterns above, and strong local identity throughout.",
+    themes: ["Foothills", "Craft economy", "Agriculture"],
+    facts: [
+      { label: "Center", value: "Namangan" },
+      { label: "Landscape", value: "Foothills and irrigated valley" },
+      { label: "Showcase angle", value: "Regional identity at small scale" },
+      { label: "Suggested export", value: "06-namangan.jpg" }
+    ],
+    highlights: [
+      "Use contour or relief hints if your source maps make the foothill edge clear.",
+      "This region benefits from a closer zoom than the western desert regions.",
+      "Keep the story grounded in everyday geography rather than national-scale infrastructure." 
+    ]
+  },
+  {
+    id: "navoiy",
+    name: "Navoiy Region",
+    caption: "Mining, desert infrastructure, and long-distance spatial scale.",
+    map: "assets/maps/07-navoiy.jpg",
+    palette: ["#cc7f3a", "#2f7083", "#efd88d"],
+    summary:
+      "Use Navoiy to communicate scale. Distances, extractive landscapes, and industrial nodes matter here, so the map should feel expansive rather than crowded.",
+    themes: ["Mining", "Desert scale", "Industry"],
+    facts: [
+      { label: "Center", value: "Navoiy" },
+      { label: "Landscape", value: "Desert and industrial corridors" },
+      { label: "Showcase angle", value: "Large-scale infrastructure in sparse terrain" },
+      { label: "Suggested export", value: "07-navoiy.jpg" }
+    ],
+    highlights: [
+      "Use very few labels and let landmass and infrastructure spacing do the work.",
+      "This is a strong region for overlays on resources, rail, or energy systems.",
+      "A single distance metric can help visitors understand the region's scale quickly." 
+    ]
+  },
+  {
+    id: "qashqadaryo",
+    name: "Qashqadaryo Region",
+    caption: "Mountain gateways, energy assets, and agricultural plains.",
+    map: "assets/maps/08-qashqadaryo.jpg",
+    palette: ["#b85a31", "#5b8b4a", "#f0ca7b"],
+    summary:
+      "Frame Qashqadaryo as a region of contrast: mountain approaches in the east, open plains to the west, and major energy and agricultural systems running through both.",
+    themes: ["Energy", "Mountains", "Plains"],
+    facts: [
+      { label: "Center", value: "Qarshi" },
+      { label: "Landscape", value: "Foothills, plains, river valleys" },
+      { label: "Showcase angle", value: "Contrast between terrain and extraction" },
+      { label: "Suggested export", value: "08-qashqadaryo.jpg" }
+    ],
+    highlights: [
+      "Make the east-west contrast obvious with color blocks or relief cues.",
+      "If the story includes energy, keep symbols sparse so the terrain remains readable.",
+      "The region works well as a bridge between environmental and industrial narratives." 
+    ]
+  },
+  {
+    id: "samarqand",
+    name: "Samarqand Region",
+    caption: "Historic urban gravity, river valleys, and cultivated heartland.",
+    map: "assets/maps/09-samarqand.jpg",
+    palette: ["#cf6f3b", "#2c7b83", "#f1bf72"],
+    summary:
+      "Samarqand can carry both heritage and geography at once: a major cultural center set inside productive valleys and connected landscapes across central Uzbekistan.",
+    themes: ["Heritage", "Valleys", "Regional hub"],
+    facts: [
+      { label: "Center", value: "Samarqand" },
+      { label: "Landscape", value: "Valleys and cultivated plateau" },
+      { label: "Showcase angle", value: "Cultural magnet in a productive landscape" },
+      { label: "Suggested export", value: "09-samarqand.jpg" }
+    ],
+    highlights: [
+      "This region can tolerate a denser label set because the name recognition is strong.",
+      "Use one narrative block for heritage and another for current regional function.",
+      "Avoid making the city the whole story; the surrounding landscape matters too." 
+    ]
+  },
+  {
+    id: "sirdaryo",
+    name: "Sirdaryo Region",
+    caption: "Compact plains shaped by irrigation and corridor infrastructure.",
+    map: "assets/maps/10-sirdaryo.jpg",
+    palette: ["#c96b3f", "#318571", "#e8d58b"],
+    summary:
+      "Sirdaryo is ideal for a concise map story: compact territory, strong irrigation patterns, and major transport lines that make spatial logic easy to read on screen.",
+    themes: ["Irrigation", "Transport", "Compact scale"],
+    facts: [
+      { label: "Center", value: "Gulistan" },
+      { label: "Landscape", value: "Irrigated plains" },
+      { label: "Showcase angle", value: "Efficiency and corridor planning" },
+      { label: "Suggested export", value: "10-sirdaryo.jpg" }
+    ],
+    highlights: [
+      "Use this region when you want a fast, legible example of irrigation geometry.",
+      "Minimal annotation is enough because the spatial pattern is already clean.",
+      "A route overlay can add energy without making the panel feel crowded." 
+    ]
+  },
+  {
+    id: "surxondaryo",
+    name: "Surxondaryo Region",
+    caption: "Southern valleys, mountain borders, and cross-border geography.",
+    map: "assets/maps/11-surxondaryo.jpg",
+    palette: ["#da7432", "#44825c", "#f0c574"],
+    summary:
+      "Use Surxondaryo to show the southern threshold of the country: warm valleys, mountain edges, archaeological depth, and border-facing geography.",
+    themes: ["Borders", "Mountains", "Archaeology"],
+    facts: [
+      { label: "Center", value: "Termiz" },
+      { label: "Landscape", value: "Valleys, mountains, borderlands" },
+      { label: "Showcase angle", value: "Southern gateway" },
+      { label: "Suggested export", value: "11-surxondaryo.jpg" }
+    ],
+    highlights: [
+      "Use relief or shaded terrain if your atlas source has it, because topography is central here.",
+      "Cross-border position is important, but the region should still read as internally coherent.",
+      "A short note on archaeology or ancient routes adds depth without clutter." 
+    ]
+  },
+  {
+    id: "tashkent-region",
+    name: "Tashkent Region",
+    caption: "Mountain recreation, reservoirs, and metropolitan supply systems.",
+    map: "assets/maps/12-tashkent-region.jpg",
+    palette: ["#d56539", "#2a728f", "#d6e69a"],
+    summary:
+      "Present the wider Tashkent region as the metropolitan landscape behind the capital: reservoirs, recreation zones, industry, and the mountain backdrop that shapes movement and water.",
+    themes: ["Water", "Metropolitan edge", "Mountains"],
+    facts: [
+      { label: "Center", value: "Nurafshon" },
+      { label: "Landscape", value: "Reservoirs, foothills, industrial belts" },
+      { label: "Showcase angle", value: "Support geography for the capital" },
+      { label: "Suggested export", value: "12-tashkent-region.jpg" }
+    ],
+    highlights: [
+      "Use reservoir shapes and mountain edges as the main visual signatures.",
+      "This region pairs well with the separate Tashkent City panel for a metro story.",
+      "Do not overload the map with small settlements if the audience is standing at a distance." 
+    ]
+  },
+  {
+    id: "tashkent-city",
+    name: "Tashkent City",
+    caption: "A metropolitan node distilled into a compact, high-contrast panel.",
+    map: "assets/maps/13-tashkent-city.jpg",
+    palette: ["#f09849", "#327e9f", "#f4d7a1"],
+    summary:
+      "Treat the capital as its own visual language: denser, more graphic, and focused on mobility, institutions, public space, and urban legibility rather than broad land cover.",
+    themes: ["Capital city", "Mobility", "Institutions"],
+    facts: [
+      { label: "Status", value: "Independent city" },
+      { label: "Landscape", value: "Urban core and green structure" },
+      { label: "Showcase angle", value: "National decision-making center" },
+      { label: "Suggested export", value: "13-tashkent-city.jpg" }
+    ],
+    highlights: [
+      "Use tighter framing than the regional maps so the city feels intentionally distinct.",
+      "A transit or civic overlay can make the panel feel more metropolitan immediately.",
+      "Balance hard infrastructure with parks or waterways to avoid a flat urban read." 
+    ]
+  },
+  {
+    id: "xorazm",
+    name: "Xorazm Region",
+    caption: "Historic irrigated landscapes at the edge of the lower Amu Darya.",
+    map: "assets/maps/14-xorazm.jpg",
+    palette: ["#d37f32", "#2d8a78", "#efe194"],
+    summary:
+      "Xorazm closes the atlas well: strong irrigation geometry, deep historic continuity, and an immediately recognizable contrast between cultivated land and surrounding aridity.",
+    themes: ["Irrigation", "Lower Amu Darya", "Historic landscape"],
+    facts: [
+      { label: "Center", value: "Urgench" },
+      { label: "Landscape", value: "Irrigated oasis and arid fringe" },
+      { label: "Showcase angle", value: "Geometry of water and settlement" },
+      { label: "Suggested export", value: "14-xorazm.jpg" }
+    ],
+    highlights: [
+      "Use irrigation patterns as the main visual hook; they read clearly from a distance.",
+      "Heritage context works especially well when paired with modern land-use imagery.",
+      "The map can serve as a satisfying final frame because the contrast is visually strong." 
+    ]
+  }
+];
+
+</script>
+    <script>
+const state = {
+  query: "",
+  activeRegionId: window.REGIONS?.[0]?.id ?? null,
+  autoplayEnabled: false,
+  rotationId: null
+};
+
+const elements = {
+  search: document.querySelector("#region-search"),
+  count: document.querySelector("#result-count"),
+  list: document.querySelector("#region-list"),
+  name: document.querySelector("#region-name"),
+  index: document.querySelector("#region-index"),
+  caption: document.querySelector("#region-caption"),
+  themePills: document.querySelector("#theme-pills"),
+  summary: document.querySelector("#region-summary"),
+  factsGrid: document.querySelector("#facts-grid"),
+  highlights: document.querySelector("#highlights-list"),
+  mapStage: document.querySelector("#map-stage"),
+  mapImage: document.querySelector("#map-image"),
+  mapPlaceholder: document.querySelector("#map-placeholder"),
+  placeholderTitle: document.querySelector("#placeholder-title"),
+  placeholderCopy: document.querySelector("#placeholder-copy"),
+  mapNote: document.querySelector("#map-note"),
+  autoplayToggle: document.querySelector("#autoplay-toggle"),
+  nextButton: document.querySelector("#next-region")
+};
+
+function getVisibleRegions() {
+  const query = state.query.trim().toLowerCase();
+
+  if (!query) {
+    return window.REGIONS;
+  }
+
+  return window.REGIONS.filter((region) => {
+    const haystack = [
+      region.name,
+      region.caption,
+      region.summary,
+      ...(region.themes || []),
+      ...(region.highlights || [])
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+}
+
+function ensureActiveRegion(visibleRegions) {
+  if (!visibleRegions.length) {
+    state.activeRegionId = null;
+    return null;
+  }
+
+  const activeRegion = visibleRegions.find((region) => region.id === state.activeRegionId);
+
+  if (activeRegion) {
+    return activeRegion;
+  }
+
+  state.activeRegionId = visibleRegions[0].id;
+  return visibleRegions[0];
+}
+
+function setTheme(region) {
+  const [accentA, accentB, accentC] = region.palette;
+  document.documentElement.style.setProperty("--accent-a", accentA);
+  document.documentElement.style.setProperty("--accent-b", accentB);
+  document.documentElement.style.setProperty("--accent-c", accentC || accentB);
+}
+
+function renderRegionList(visibleRegions, activeRegion) {
+  elements.count.textContent = `${visibleRegions.length} visible`;
+
+  if (!visibleRegions.length) {
+    elements.list.innerHTML = '<div class="empty-state">No regions match this search. Clear the filter or add broader theme keywords in js/regions.js.</div>';
+    return;
+  }
+
+  elements.list.innerHTML = visibleRegions
+    .map((region, index) => {
+      const activeClass = region.id === activeRegion?.id ? " is-active" : "";
+      return `
+        <button class="region-button${activeClass}" type="button" data-region-id="${region.id}">
+          <strong>${String(index + 1).padStart(2, "0")} · ${region.name}</strong>
+          <span>${region.caption}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function renderThemePills(region) {
+  elements.themePills.innerHTML = (region.themes || []).map((theme) => `<span>${theme}</span>`).join("");
+}
+
+function renderFacts(region) {
+  elements.factsGrid.innerHTML = (region.facts || [])
+    .map(
+      (fact) => `
+        <dl class="fact-card">
+          <dt>${fact.label}</dt>
+          <dd>${fact.value}</dd>
+        </dl>
+      `
+    )
+    .join("");
+}
+
+function renderHighlights(region) {
+  elements.highlights.innerHTML = (region.highlights || [])
+    .map((highlight) => `<li>${highlight}</li>`)
+    .join("");
+}
+
+function renderMap(region) {
+  elements.mapNote.textContent = `Expected file: ${region.map}`;
+  elements.placeholderTitle.textContent = `Add ${region.name} map`;
+  elements.placeholderCopy.textContent = `Drop a curated JPG into ${region.map} or adjust the path in js/regions.js.`;
+  elements.mapImage.hidden = true;
+  elements.mapPlaceholder.hidden = false;
+  elements.mapStage.dataset.ready = "false";
+  elements.mapImage.removeAttribute("src");
+
+  if (!region.map) {
+    return;
+  }
+
+  const preview = new Image();
+  preview.onload = () => {
+    elements.mapImage.src = region.map;
+    elements.mapImage.alt = `${region.name} atlas map`;
+    elements.mapImage.hidden = false;
+    elements.mapPlaceholder.hidden = true;
+    elements.mapStage.dataset.ready = "true";
+  };
+  preview.onerror = () => {
+    elements.mapStage.dataset.ready = "false";
+  };
+  preview.src = region.map;
+}
+
+function renderActiveRegion(region, visibleRegions) {
+  if (!region) {
+    elements.index.textContent = "No result";
+    elements.name.textContent = "No matching region";
+    elements.caption.textContent = "Try a broader search term.";
+    elements.summary.textContent = "The atlas data is driven by js/regions.js, so you can expand search coverage by adding theme words there.";
+    elements.themePills.innerHTML = "";
+    elements.factsGrid.innerHTML = "";
+    elements.highlights.innerHTML = "";
+    elements.mapNote.textContent = "";
+    elements.placeholderTitle.textContent = "No matching map";
+    elements.placeholderCopy.textContent = "Clear the search field to restore the full atlas index.";
+    elements.mapImage.hidden = true;
+    elements.mapPlaceholder.hidden = false;
+    elements.mapStage.dataset.ready = "false";
+    return;
+  }
+
+  const activeIndex = visibleRegions.findIndex((item) => item.id === region.id);
+  elements.index.textContent = `Region ${String(activeIndex + 1).padStart(2, "0")}`;
+  elements.name.textContent = region.name;
+  elements.caption.textContent = region.caption;
+  elements.summary.textContent = region.summary;
+
+  setTheme(region);
+  renderThemePills(region);
+  renderFacts(region);
+  renderHighlights(region);
+  renderMap(region);
+}
+
+function render() {
+  const visibleRegions = getVisibleRegions();
+  const activeRegion = ensureActiveRegion(visibleRegions);
+  renderRegionList(visibleRegions, activeRegion);
+  renderActiveRegion(activeRegion, visibleRegions);
+}
+
+function clearRotation() {
+  if (state.rotationId) {
+    window.clearInterval(state.rotationId);
+    state.rotationId = null;
+  }
+}
+
+function syncRotation() {
+  clearRotation();
+
+  if (state.autoplayEnabled && !document.hidden) {
+    state.rotationId = window.setInterval(() => {
+      stepRegion(1);
+    }, 9000);
+  }
+
+  elements.autoplayToggle.textContent = state.autoplayEnabled ? "Stop autoplay" : "Start autoplay";
+}
+
+function stepRegion(direction) {
+  const visibleRegions = getVisibleRegions();
+
+  if (!visibleRegions.length) {
+    return;
+  }
+
+  const activeIndex = visibleRegions.findIndex((region) => region.id === state.activeRegionId);
+  const currentIndex = activeIndex === -1 ? 0 : activeIndex;
+  const nextIndex = (currentIndex + direction + visibleRegions.length) % visibleRegions.length;
+  state.activeRegionId = visibleRegions[nextIndex].id;
+  render();
+}
+
+function wireEvents() {
+  elements.search.addEventListener("input", (event) => {
+    state.query = event.target.value;
+    render();
+  });
+
+  elements.list.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-region-id]");
+
+    if (!button) {
+      return;
+    }
+
+    state.activeRegionId = button.dataset.regionId;
+    render();
+  });
+
+  elements.autoplayToggle.addEventListener("click", () => {
+    state.autoplayEnabled = !state.autoplayEnabled;
+    syncRotation();
+  });
+
+  elements.nextButton.addEventListener("click", () => {
+    stepRegion(1);
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    syncRotation();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const target = event.target;
+    const isTyping = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+    if (isTyping) {
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      stepRegion(1);
+    }
+
+    if (event.key === "ArrowLeft") {
+      stepRegion(-1);
+    }
+
+    if (event.key.toLowerCase() === " ") {
+      event.preventDefault();
+      state.autoplayEnabled = !state.autoplayEnabled;
+      syncRotation();
+    }
+  });
+}
+
+wireEvents();
+render();
+syncRotation();
+
+</script>
+  </body>
+</html>
