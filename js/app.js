@@ -108,6 +108,7 @@ const elements = {
   moderatorCaption: document.querySelector("#moderator-caption"),
   moderatorSummary: document.querySelector("#moderator-summary"),
   moderatorNote: document.querySelector("#moderator-note"),
+  moderatorIntegrate: document.querySelector("#moderator-integrate"),
   moderatorPreview: document.querySelector("#moderator-preview"),
   moderatorReset: document.querySelector("#moderator-reset"),
   moderatorExport: document.querySelector("#moderator-export"),
@@ -199,6 +200,10 @@ function normalizeDraft(rawDraft) {
     moderatorNote: String(rawDraft.moderatorNote || rawDraft.note || "").trim(),
     sourcePdf: String(rawDraft.sourcePdf || rawDraft.pdfName || "").trim(),
     sourceFileSize: String(rawDraft.sourceFileSize || "").trim(),
+    atlasPreviewImage: String(rawDraft.atlasPreviewImage || rawDraft.atlasPlateImage || "").trim(),
+    atlasPreviewPage: Number.isFinite(Number(rawDraft.atlasPreviewPage))
+      ? Math.max(1, Math.round(Number(rawDraft.atlasPreviewPage)))
+      : 0,
     updatedAt: String(rawDraft.updatedAt || "").trim()
   };
 
@@ -278,18 +283,32 @@ function getEffectiveRegion(regionOrId) {
     return null;
   }
 
+  const baseAtlasPreviewImage = baseRegion.atlasPreviewImage || "";
+  const baseAtlasPreviewPage = baseRegion.atlasPreviewPage || 0;
+
   const draft = getDraft(baseRegion.id);
   if (!draft) {
-    return { ...baseRegion };
+    return {
+      ...baseRegion,
+      map: baseAtlasPreviewImage || baseRegion.map,
+      atlasPreviewImage: baseAtlasPreviewImage,
+      atlasPreviewPage: baseAtlasPreviewPage
+    };
   }
+
+  const atlasPreviewImage = draft.atlasPreviewImage || baseAtlasPreviewImage;
+  const atlasPreviewPage = draft.atlasPreviewPage || baseAtlasPreviewPage;
 
   return {
     ...baseRegion,
+    map: atlasPreviewImage || baseRegion.map,
     caption: draft.caption || baseRegion.caption,
     summary: draft.summary || baseRegion.summary,
     moderatorNote: draft.moderatorNote || baseRegion.moderatorNote || "",
     sourcePdf: draft.sourcePdf || baseRegion.sourcePdf || "",
     sourceFileSize: draft.sourceFileSize || baseRegion.sourceFileSize || "",
+    atlasPreviewImage,
+    atlasPreviewPage,
     updatedAt: draft.updatedAt || baseRegion.updatedAt || "",
     hasModeratorDraft: true
   };
@@ -480,6 +499,16 @@ function closeDrawer() {
 
 function fillDrawer(region) {
   const draftFacts = [];
+
+  if (region.atlasPreviewImage) {
+    draftFacts.push({
+      key: "focus",
+      label: "Atlas preview",
+      value: region.atlasPreviewPage
+        ? `Integrated PDF page ${region.atlasPreviewPage}`
+        : "Integrated moderator PDF preview"
+    });
+  }
 
   if (region.sourcePdf) {
     draftFacts.push({
@@ -1077,9 +1106,17 @@ function buildModeratorDraftList() {
   elements.moderatorDraftList.innerHTML = drafts
     .map((draft) => {
       const region = REGIONS[INDEX_BY_ID.get(draft.regionId)];
-      const detail = draft.sourcePdf
-        ? `Source PDF: ${draft.sourcePdf}${draft.sourceFileSize ? ` · ${draft.sourceFileSize}` : ""}`
-        : "Description-only draft";
+      const detailParts = [];
+
+      if (draft.sourcePdf) {
+        detailParts.push(`Source PDF: ${draft.sourcePdf}${draft.sourceFileSize ? ` · ${draft.sourceFileSize}` : ""}`);
+      }
+
+      if (draft.atlasPreviewImage) {
+        detailParts.push(`Atlas preview saved${draft.atlasPreviewPage ? ` · Page ${draft.atlasPreviewPage}` : ""}`);
+      }
+
+      const detail = detailParts.join(" · ") || "Description-only draft";
       const updated = draft.updatedAt ? `Updated ${draft.updatedAt}` : "Draft saved";
 
       return `
@@ -1124,6 +1161,8 @@ function createDraftFromForm() {
     moderatorNote: elements.moderatorNote.value.trim(),
     sourcePdf: sessionFile?.name || existingDraft?.sourcePdf || "",
     sourceFileSize: sessionFile ? formatBytes(sessionFile.size) : existingDraft?.sourceFileSize || "",
+    atlasPreviewImage: existingDraft?.atlasPreviewImage || "",
+    atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
     updatedAt: new Date().toLocaleString()
   };
 
@@ -1131,7 +1170,8 @@ function createDraftFromForm() {
     draft.caption !== (baseRegion?.caption || "") ||
     draft.summary !== (baseRegion?.summary || "") ||
     Boolean(draft.moderatorNote) ||
-    Boolean(draft.sourcePdf);
+    Boolean(draft.sourcePdf) ||
+    Boolean(draft.atlasPreviewImage);
 
   return isMeaningful ? draft : null;
 }
@@ -1153,6 +1193,72 @@ function saveModeratorDraft() {
   syncModeratorViews();
   populateModeratorForm(regionId);
   setModeratorStatus(`Draft saved for ${getEffectiveRegion(regionId)?.name}.`);
+}
+
+function integrateModeratorPdfIntoAtlas() {
+  const regionId = elements.moderatorRegion.value;
+  const currentRegion = getEffectiveRegion(regionId);
+  const existingDraft = getDraft(regionId);
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const canvas = elements.moderatorPdfCanvas;
+
+  if (elements.moderatorPdfRender.hidden || !canvas.width || !canvas.height) {
+    setModeratorStatus("Render a PDF page in the moderator preview first, then integrate it into the atlas.", true);
+    return;
+  }
+
+  let atlasPreviewImage = "";
+
+  try {
+    atlasPreviewImage = canvas.toDataURL("image/jpeg", 0.92);
+  } catch {
+    setModeratorStatus("Could not capture the current PDF page for atlas integration. Re-render the PDF preview and try again.", true);
+    return;
+  }
+
+  const fallbackDraft = {
+    regionId,
+    caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
+    summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
+    moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
+    sourcePdf: sessionFile?.name || existingDraft?.sourcePdf || currentRegion?.sourcePdf || "",
+    sourceFileSize: sessionFile
+      ? formatBytes(sessionFile.size)
+      : existingDraft?.sourceFileSize || currentRegion?.sourceFileSize || "",
+    atlasPreviewImage: existingDraft?.atlasPreviewImage || "",
+    atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
+    updatedAt: new Date().toLocaleString()
+  };
+  const pageNumber = state.moderatorPdfPageByRegion.get(regionId) || existingDraft?.atlasPreviewPage || 1;
+  const nextDraft = {
+    ...(createDraftFromForm() || fallbackDraft),
+    atlasPreviewImage,
+    atlasPreviewPage: pageNumber,
+    updatedAt: new Date().toLocaleString()
+  };
+
+  state.moderatorDrafts.set(regionId, nextDraft);
+
+  try {
+    persistDrafts();
+  } catch {
+    if (existingDraft) {
+      state.moderatorDrafts.set(regionId, existingDraft);
+    } else {
+      state.moderatorDrafts.delete(regionId);
+    }
+
+    syncModeratorViews();
+    populateModeratorForm(regionId);
+    setModeratorStatus("Could not save the integrated atlas preview in browser storage. The preview image may be too large for this browser profile.", true);
+    return;
+  }
+
+  syncModeratorViews();
+  populateModeratorForm(regionId);
+  setModeratorStatus(
+    `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId}. Use Preview in atlas to inspect it.`
+  );
 }
 
 function deleteModeratorDraft(regionId) {
@@ -1532,6 +1638,7 @@ function wireEvents() {
     saveModeratorDraft();
   });
 
+  elements.moderatorIntegrate.addEventListener("click", integrateModeratorPdfIntoAtlas);
   elements.moderatorPreview.addEventListener("click", previewModeratorRegion);
   elements.moderatorReset.addEventListener("click", () => {
     deleteModeratorDraft(elements.moderatorRegion.value);

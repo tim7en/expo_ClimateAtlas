@@ -56,10 +56,13 @@ The atlas now includes a moderator workspace for content handoff.
 1. Open **Moderator** from the top bar.
 2. Choose a region.
 3. Attach the source PDF for that region, write a caption, and update the long description.
-4. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
-5. Export the handoff JSON and give it together with the original PDF files to your associate.
+4. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
+5. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
+6. Export the handoff JSON and give it together with the original PDF files to your associate.
 
 The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
+
+The integrated atlas plate is a moderator-side raster preview captured from the PDF page you are viewing. It is useful for review and handoff, but the final production workflow should still replace it with a curated JPG export in `assets/maps/`.
 
 Persistence details:
 
@@ -80,7 +83,8 @@ Notes:
 
 1. When the atlas is served over local HTTP, the browser can render a selected PDF preview during the current session and keep the original file available for open or download. Direct `file://` browsing may block that preview path in embedded browsers, even though the filename still records correctly.
 2. The exported handoff JSON stores the text edits and recorded PDF filenames; hand over the real PDF files alongside it.
-3. The importer writes the draft data into `js/moderator-drafts.js`, which overlays the base atlas content without forcing you to edit `js/regions.js` manually.
+3. If you use **Integrate into atlas**, the exported handoff JSON also carries the saved moderator atlas preview image so your associate can apply it into `js/moderator-drafts.js` before a final JPG export is ready.
+4. The importer writes the draft data into `js/moderator-drafts.js`, which overlays the base atlas content without forcing you to edit `js/regions.js` manually.
 
 ## Python tooling
 

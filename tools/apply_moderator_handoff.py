@@ -15,13 +15,20 @@ def resolve_path(raw_path: str) -> Path:
     return (ROOT / path).resolve()
 
 
-def normalize_draft(raw_draft: object) -> dict[str, str] | None:
+def normalize_draft(raw_draft: object) -> dict[str, object] | None:
     if not isinstance(raw_draft, dict):
         return None
 
     region_id = str(raw_draft.get("regionId") or raw_draft.get("id") or "").strip()
     if not region_id:
         return None
+
+    try:
+        atlas_preview_page = int(raw_draft.get("atlasPreviewPage") or 0)
+    except (TypeError, ValueError):
+        atlas_preview_page = 0
+
+    atlas_preview_page = atlas_preview_page if atlas_preview_page > 0 else 0
 
     normalized = {
         "regionId": region_id,
@@ -30,13 +37,15 @@ def normalize_draft(raw_draft: object) -> dict[str, str] | None:
         "moderatorNote": str(raw_draft.get("moderatorNote") or raw_draft.get("note") or "").strip(),
         "sourcePdf": str(raw_draft.get("sourcePdf") or raw_draft.get("pdfName") or "").strip(),
         "sourceFileSize": str(raw_draft.get("sourceFileSize") or "").strip(),
+        "atlasPreviewImage": str(raw_draft.get("atlasPreviewImage") or raw_draft.get("atlasPlateImage") or "").strip(),
+        "atlasPreviewPage": atlas_preview_page,
         "updatedAt": str(raw_draft.get("updatedAt") or "").strip(),
     }
 
     return normalized
 
 
-def load_handoff(path: Path) -> list[dict[str, str]]:
+def load_handoff(path: Path) -> list[dict[str, object]]:
     payload = json.loads(path.read_text(encoding="utf-8-sig"))
 
     if isinstance(payload, list):
@@ -49,7 +58,7 @@ def load_handoff(path: Path) -> list[dict[str, str]]:
     if not isinstance(raw_drafts, list):
         raise ValueError("The handoff file did not contain a valid draft list.")
 
-    normalized_drafts: list[dict[str, str]] = []
+    normalized_drafts: list[dict[str, object]] = []
     for raw_draft in raw_drafts:
         normalized = normalize_draft(raw_draft)
         if normalized:
@@ -61,7 +70,7 @@ def load_handoff(path: Path) -> list[dict[str, str]]:
     return normalized_drafts
 
 
-def write_js_module(output_path: Path, drafts: list[dict[str, str]]) -> None:
+def write_js_module(output_path: Path, drafts: list[dict[str, object]]) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(drafts, ensure_ascii=False, indent=2)
     output_path.write_text(f"window.MODERATOR_DRAFTS = {payload};\n", encoding="utf-8")
