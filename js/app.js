@@ -1566,6 +1566,18 @@ function setModeratorStatus(message, isAlert = false) {
 }
 
 function getModeratorProjectPackageTarget(regionId = state.moderatorRegionId || elements.moderatorRegion?.value || REGIONS[0]?.id || "plate") {
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE) {
+    return `${state.projectArchiveRootHandle?.name || regionId}/`;
+  }
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+    return `${regionId}/`;
+  }
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT) {
+    return `${getActiveAtlasId()}/${regionId}/`;
+  }
+
   return `${buildProjectPlatePackagePath(regionId, getActiveAtlasId())}/`;
 }
 
@@ -1583,11 +1595,24 @@ function updateModeratorProjectRootMeta(regionId = state.moderatorRegionId || el
       : "Connect save folder";
   }
 
-  elements.moderatorProjectRootMeta.textContent = state.projectArchiveRootHandle
-    ? isAtlasFolderConnection
-      ? `Connected atlas save folder: ${state.projectArchiveRootHandle.name}. Plate packages will be written directly under ${packageTarget}`
-      : `Connected project root: ${state.projectArchiveRootHandle.name}. Plate packages will be written under ${packageTarget}`
-    : `No save folder connected yet. Connect the atlas repo root or the current atlas folder to save plate packages under ${packageTarget}`;
+  if (!state.projectArchiveRootHandle) {
+    elements.moderatorProjectRootMeta.textContent = `No save folder connected yet. Connect the atlas repo root, archive folder, atlas-previews folder, current atlas folder, or a single plate package to save plate packages under ${packageTarget}`;
+    return;
+  }
+
+  const modeLabels = {
+    [PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT]: "project root",
+    [PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT]: "archive parent",
+    [PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT]: "moderator archive",
+    [PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT]: "atlas previews folder",
+    [PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER]: "atlas save folder",
+    [PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE]: "plate package"
+  };
+  const modeLabel = modeLabels[state.projectArchiveConnectionMode] || "save folder";
+
+  elements.moderatorProjectRootMeta.textContent = isAtlasFolderConnection || state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE
+    ? `Connected ${modeLabel}: ${state.projectArchiveRootHandle.name}. Plate packages will be written directly under ${packageTarget}`
+    : `Connected ${modeLabel}: ${state.projectArchiveRootHandle.name}. Plate packages will be written under ${packageTarget}`;
 }
 
 async function connectModeratorProjectRoot() {
