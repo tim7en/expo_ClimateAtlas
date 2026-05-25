@@ -9,6 +9,9 @@ const MODERATOR_PDF_PREVIEW_MAX_SCALE = 2.25;
 const MODERATOR_ATLAS_RENDER_MAX_SCALE = 4;
 const MODERATOR_ATLAS_RENDER_MAX_WIDTH = 2200;
 const MODERATOR_ATLAS_RENDER_MAX_HEIGHT = 3000;
+const BROWSER_STORAGE_ATLAS_PREVIEW_MAX_CHARS = 280000;
+const BROWSER_STORAGE_ATLAS_PREVIEW_TARGET_WIDTHS = [1400, 1100, 850, 640, 480];
+const BROWSER_STORAGE_ATLAS_PREVIEW_QUALITIES = [0.78, 0.66, 0.54, 0.42];
 const PROJECT_PDFS_FOLDER = "pdfs";
 const MODERATOR_PROJECT_ARCHIVE_FOLDER = "moderator-library";
 const MODERATOR_PROJECT_ARCHIVE_PATH = `${PROJECT_PDFS_FOLDER}/${MODERATOR_PROJECT_ARCHIVE_FOLDER}`;
@@ -20,9 +23,16 @@ const MODERATOR_PROJECT_HISTORY_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODE
 const DEFAULT_PLATE_TYPE = "Atlas plate";
 const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
+const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas project root or its pdfs folder so moderator files are saved inside this repo.";
 
 function buildIndex(regions) {
   return new Map((regions || []).map((region, index) => [region.id, index]));
+}
+
+function createProjectArchiveRootError(message = PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE) {
+  const error = new Error(message);
+  error.name = "ProjectArchiveRootError";
+  return error;
 }
 
 function normalizeAtlasId(value, fallback = "atlas") {
@@ -431,12 +441,25 @@ function mergeDraftMaps(baseMap, overrideMap) {
   return merged;
 }
 
+function serializeDraftForBrowserStorage(draft) {
+  const serializedDraft = { ...draft };
+
+  if (serializedDraft.atlasPreviewStorageImage) {
+    serializedDraft.atlasPreviewImage = serializedDraft.atlasPreviewStorageImage;
+  }
+
+  delete serializedDraft.atlasPreviewStorageImage;
+  return serializedDraft;
+}
+
 function serializeDraftMap(draftMap) {
-  return Array.from(draftMap.values()).sort((left, right) => {
-    const leftIndex = getRegionSortIndex(left.regionId, left.customOrder);
-    const rightIndex = getRegionSortIndex(right.regionId, right.customOrder);
-    return leftIndex - rightIndex;
-  });
+  return Array.from(draftMap.values())
+    .sort((left, right) => {
+      const leftIndex = getRegionSortIndex(left.regionId, left.customOrder);
+      const rightIndex = getRegionSortIndex(right.regionId, right.customOrder);
+      return leftIndex - rightIndex;
+    })
+    .map((draft) => serializeDraftForBrowserStorage(draft));
 }
 
 function readStoredDraftPayload() {
@@ -601,9 +624,36 @@ function buildModeratorHistoryPayload(draft, reason = "draft-save", options = {}
   };
 }
 
+async function directoryHandleContainsFile(handle, fileName) {
+  try {
+    await handle.getFileHandle(fileName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isValidProjectArchiveRootHandle(handle) {
+  if (!handle) {
+    return false;
+  }
+
+  const handleName = String(handle.name || "").trim().toLowerCase();
+
+  if (handleName === PROJECT_PDFS_FOLDER) {
+    return true;
+  }
+
+  return (await directoryHandleContainsFile(handle, "index.html")) || (await directoryHandleContainsFile(handle, "package.json"));
+}
+
 async function getProjectArchiveDirectoryHandle(prompt = true) {
   if (typeof window.showDirectoryPicker !== "function") {
     return null;
+  }
+
+  if (!(await isValidProjectArchiveRootHandle(state.projectArchiveRootHandle))) {
+    state.projectArchiveRootHandle = null;
   }
 
   if (!state.projectArchiveRootHandle) {
@@ -611,15 +661,17 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
       return null;
     }
 
-    state.projectArchiveRootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const pickedHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+
+    if (!(await isValidProjectArchiveRootHandle(pickedHandle))) {
+      throw createProjectArchiveRootError();
+    }
+
+    state.projectArchiveRootHandle = pickedHandle;
   }
 
   const rootHandle = state.projectArchiveRootHandle;
   const rootName = String(rootHandle?.name || "").trim().toLowerCase();
-
-  if (rootName === MODERATOR_PROJECT_ARCHIVE_FOLDER) {
-    return rootHandle;
-  }
 
   const pdfsHandle = rootName === PROJECT_PDFS_FOLDER
     ? rootHandle
@@ -1749,6 +1801,63 @@ async function renderModeratorAtlasPdfImage(regionId, requestedPage = 1) {
   return canvas.toDataURL("image/jpeg", 0.96);
 }
 
+function renderCanvasToJpegDataUrl(sourceCanvas, targetWidth, targetHeight, quality) {
+  const outputCanvas = document.createElement("canvas");
+  const outputContext = outputCanvas.getContext("2d", { alpha: false });
+
+  if (!outputContext) {
+    return "";
+  }
+
+  outputCanvas.width = Math.max(1, Math.floor(targetWidth));
+  outputCanvas.height = Math.max(1, Math.floor(targetHeight));
+  outputContext.fillStyle = "#ffffff";
+  outputContext.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = "high";
+  outputContext.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+
+  return outputCanvas.toDataURL("image/jpeg", quality);
+}
+
+function buildBrowserStorageAtlasPreview(sourceCanvas, fallbackDataUrl = "") {
+  const normalizedFallback = String(fallbackDataUrl || "").trim();
+
+  if (normalizedFallback && normalizedFallback.length <= BROWSER_STORAGE_ATLAS_PREVIEW_MAX_CHARS) {
+    return normalizedFallback;
+  }
+
+  if (!sourceCanvas?.width || !sourceCanvas?.height) {
+    return normalizedFallback;
+  }
+
+  const aspectRatio = sourceCanvas.height / Math.max(1, sourceCanvas.width);
+  let smallestCandidate = normalizedFallback;
+
+  for (const targetWidth of BROWSER_STORAGE_ATLAS_PREVIEW_TARGET_WIDTHS) {
+    const boundedWidth = Math.min(sourceCanvas.width, targetWidth);
+    const boundedHeight = Math.max(1, Math.round(boundedWidth * aspectRatio));
+
+    for (const quality of BROWSER_STORAGE_ATLAS_PREVIEW_QUALITIES) {
+      const candidate = renderCanvasToJpegDataUrl(sourceCanvas, boundedWidth, boundedHeight, quality);
+
+      if (!candidate) {
+        continue;
+      }
+
+      if (!smallestCandidate || candidate.length < smallestCandidate.length) {
+        smallestCandidate = candidate;
+      }
+
+      if (candidate.length <= BROWSER_STORAGE_ATLAS_PREVIEW_MAX_CHARS) {
+        return candidate;
+      }
+    }
+  }
+
+  return smallestCandidate;
+}
+
 function updateModeratorPdfPreview(regionId) {
   const pdfUrl = state.moderatorPdfUrls.get(regionId);
   const draft = getDraft(regionId);
@@ -2017,6 +2126,7 @@ async function saveModeratorDraft() {
 
   let nextDraft = draft;
   let archiveHandle = null;
+  let archiveErrorMessage = "";
 
   try {
     const projectResult = await syncDraftToProjectArchive({
@@ -2032,7 +2142,11 @@ async function saveModeratorDraft() {
       nextDraft = projectResult.draft;
       archiveHandle = projectResult.archiveHandle;
     }
-  } catch {
+  } catch (error) {
+    if (error?.name === "ProjectArchiveRootError") {
+      archiveErrorMessage = error.message;
+    }
+
     archiveHandle = null;
   }
 
@@ -2048,7 +2162,9 @@ async function saveModeratorDraft() {
   setModeratorStatus(
     archiveHandle
       ? `Draft saved for ${getEffectiveRegion(regionId)?.name}. Project record updated in ${nextDraft.projectDraftPath}.`
-      : `Draft saved for ${getEffectiveRegion(regionId)?.name}.`
+      : archiveErrorMessage
+        ? `${archiveErrorMessage} The draft was only saved in browser storage for ${getEffectiveRegion(regionId)?.name}.`
+        : `Draft saved for ${getEffectiveRegion(regionId)?.name}.`
   );
 }
 
@@ -2123,6 +2239,12 @@ async function archiveModeratorPdfToProject() {
   } catch (error) {
     if (error?.name === "AbortError") {
       setModeratorStatus("Project archive save was cancelled before the atlas project folder was updated.", true);
+      return;
+    }
+
+    if (error?.name === "ProjectArchiveRootError") {
+      state.projectArchiveRootHandle = null;
+      setModeratorStatus(error.message, true);
       return;
     }
 
@@ -2212,6 +2334,7 @@ async function integrateModeratorPdfIntoAtlas() {
   };
 
   let archiveHandle = null;
+  let archiveErrorMessage = "";
 
   try {
     const projectResult = await syncDraftToProjectArchive({
@@ -2230,9 +2353,23 @@ async function integrateModeratorPdfIntoAtlas() {
       archiveHandle = projectResult.archiveHandle;
     }
   } catch (error) {
+    if (error?.name === "ProjectArchiveRootError") {
+      archiveErrorMessage = error.message;
+    }
+
     if (error?.name === "AbortError") {
       archiveHandle = null;
     }
+  }
+
+  if (!archiveHandle) {
+    nextDraft = {
+      ...nextDraft,
+      atlasPreviewStorageImage: buildBrowserStorageAtlasPreview(canvas, atlasPreviewImage)
+    };
+  } else if (nextDraft.atlasPreviewStorageImage) {
+    nextDraft = { ...nextDraft };
+    delete nextDraft.atlasPreviewStorageImage;
   }
 
   state.moderatorDrafts.set(regionId, nextDraft);
@@ -2244,15 +2381,16 @@ async function integrateModeratorPdfIntoAtlas() {
   try {
     persistDrafts();
   } catch {
-    if (existingDraft) {
-      state.moderatorDrafts.set(regionId, existingDraft);
-    } else {
-      state.moderatorDrafts.delete(regionId);
-    }
-
     syncModeratorViews();
     populateModeratorForm(regionId);
-    setModeratorStatus("Could not save the integrated atlas preview in project files or browser storage. Recheck folder access and try again.", true);
+    setModeratorStatus(
+      archiveHandle
+        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview to ${nextDraft.atlasPreviewPath}, but browser storage could not be updated for this profile.`
+        : archiveErrorMessage
+          ? `${archiveErrorMessage} The plate preview is available until this page reloads, but browser storage could not keep a durable copy.`
+          : "Could not persist the integrated atlas preview in browser storage. The preview is available until this page reloads; choose the project root or its pdfs folder for a durable save.",
+      true
+    );
     return;
   }
 
@@ -2261,6 +2399,8 @@ async function integrateModeratorPdfIntoAtlas() {
   setModeratorStatus(
     archiveHandle
       ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview to ${nextDraft.atlasPreviewPath}.`
+      : archiveErrorMessage
+        ? `${archiveErrorMessage} The plate preview was only kept in browser storage for the current profile.`
       : usedPreviewFallback
         ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} using the visible preview size. Use Preview in atlas to inspect it.`
         : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} with a higher-resolution PDF render. Use Preview in atlas to inspect it.`
@@ -2708,6 +2848,7 @@ function wireEvents() {
 
     let autoArchiveSaved = false;
     let autoArchiveSkipped = false;
+    let autoArchiveErrorMessage = "";
 
     try {
       const autoArchiveDraft = {
@@ -2759,6 +2900,10 @@ function wireEvents() {
         autoArchiveSkipped = true;
       }
     } catch (error) {
+      if (error?.name === "ProjectArchiveRootError") {
+        autoArchiveErrorMessage = error.message;
+      }
+
       if (error?.name !== "AbortError") {
         state.projectArchiveRootHandle = null;
       }
@@ -2768,6 +2913,8 @@ function wireEvents() {
       setModeratorStatus(
         autoArchiveSaved
           ? `Attached ${file.name}, stored it in ${getDraft(regionId)?.projectPdfPath || MODERATOR_PROJECT_ARCHIVE_PATH}, and updated ${getDraft(regionId)?.projectDraftPath || "the draft record"}. The preview is rendering now.`
+          : autoArchiveErrorMessage
+            ? `${autoArchiveErrorMessage} ${file.name} is attached for this session, but it is not yet archived into the repo.`
           : autoArchiveSkipped
             ? `Attached ${file.name}. The preview is rendering now, but project auto-save was skipped because no project folder is available yet.`
             : `Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`
