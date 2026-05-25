@@ -106,15 +106,16 @@ The atlas now includes a moderator workspace for content handoff.
 2. Choose an existing plate or use **Add plate** to create a new draft-only plate directly in the editor.
 3. Attach the source PDF for that plate, write a caption, and update the long description.
 4. For a new plate, fill in the plate title, type, scale label, and target map path before saving.
-5. Use **Connect project root** to choose the atlas repo root before expecting repo-backed moderator saves. The app now uses that explicit connection instead of surprising folder prompts during attach or integrate.
-6. When you choose a PDF in a Chromium browser over local HTTP and a project root is connected, the atlas automatically copies it into that plate's package folder under `pdfs/moderator-library/atlas-previews/<atlasId>/<plateId>/`, writes a `latest.json` description beside it, keeps timestamped history snapshots under `pdfs/moderator-library/draft-history/`, and updates `pdfs/moderator-library/atlas-project-memory.json`.
-7. The app now rejects arbitrary `pdfs` folders so it does not claim repo-relative save paths for files written somewhere else on disk.
-8. When project archiving is unavailable, the browser-only fallback now stores a smaller preview copy so integration can still complete in the current browser profile.
-9. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview. When project access is available, the preview JPG is written beside the plate's copied PDF and `latest.json` record inside `pdfs/moderator-library/atlas-previews/<atlasId>/<plateId>/`.
-10. If the source PDF is no longer attached in the current browser session, the atlas now tries to reuse an existing project copy from `projectPdfPath` so integration can still rebuild the dedicated plate folder. If no project copy is available, re-attach the source PDF before expecting it to be copied there.
-11. Save the draft to refresh the current plate JSON record and manifest after text edits.
-12. Use **Delete plate** to remove a draft-only custom plate from the active atlas while keeping its archived project history when project access was available.
-13. Export the handoff JSON and give it together with the original PDF files to your associate.
+5. Use **Connect save folder** before expecting disk-backed moderator saves. You can now choose either the atlas repo root or the current atlas folder such as `pdfs/moderator-library/atlas-previews/<atlasId>/`.
+6. When you choose a PDF in a Chromium browser over local HTTP and a save folder is connected, the atlas copies it into that plate's package folder and writes a `latest.json` description beside it.
+7. If you connected the atlas repo root, the package is written under `pdfs/moderator-library/atlas-previews/<atlasId>/<plateId>/`, timestamped history snapshots are kept under `pdfs/moderator-library/draft-history/`, and `pdfs/moderator-library/atlas-project-memory.json` is updated.
+8. If you connected the current atlas folder directly, the app writes straight into `<connected-folder>/<plateId>/` and keeps the plate package there without trying to claim a different repo-relative parent folder.
+9. When project archiving is unavailable, the browser-only fallback now stores a smaller preview copy so integration can still complete in the current browser profile.
+10. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview. When a save folder is connected, the preview JPG is written beside the plate's copied PDF and `latest.json` record inside that plate package folder.
+11. If the source PDF is no longer attached in the current browser session, the atlas now tries to reuse an existing project copy from `projectPdfPath` so integration can still rebuild the dedicated plate folder. If no project copy is available, re-attach the source PDF before expecting it to be copied there.
+12. Save the draft to refresh the current plate JSON record and manifest after text edits.
+13. Use **Delete plate** to remove a draft-only custom plate from the active atlas while keeping its archived project history when project access was available.
+14. Export the handoff JSON and give it together with the original PDF files to your associate.
 
 The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
 

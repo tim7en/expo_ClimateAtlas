@@ -23,7 +23,9 @@ const MODERATOR_PROJECT_HISTORY_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODE
 const DEFAULT_PLATE_TYPE = "Atlas plate";
 const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
-const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas project root so moderator files are saved inside this repo.";
+const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas repo root or the current atlas save folder so moderator files are saved where you expect.";
+const PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT = "project-root";
+const PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER = "atlas-folder";
 
 function buildIndex(regions) {
   return new Map((regions || []).map((region, index) => [region.id, index]));
@@ -208,7 +210,8 @@ const state = {
   moderatorPdfDocuments: new Map(),
   moderatorPdfPageByRegion: new Map(),
   moderatorPdfRenderToken: 0,
-  projectArchiveRootHandle: null
+  projectArchiveRootHandle: null,
+  projectArchiveConnectionMode: ""
 };
 
 rebuildEffectiveRegionRegistry(state.moderatorDrafts);
@@ -643,12 +646,25 @@ async function directoryHandleContainsFile(handle, fileName) {
   }
 }
 
-async function isValidProjectArchiveRootHandle(handle) {
+async function getProjectArchiveConnectionMode(handle, atlasId = getActiveAtlasId()) {
   if (!handle) {
-    return false;
+    return "";
   }
 
-  return (await directoryHandleContainsFile(handle, "index.html")) || (await directoryHandleContainsFile(handle, "package.json"));
+  if ((await directoryHandleContainsFile(handle, "index.html")) || (await directoryHandleContainsFile(handle, "package.json"))) {
+    return PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT;
+  }
+
+  const handleName = String(handle.name || "").trim().toLowerCase();
+  const atlasFolderName = String(atlasId || getActiveAtlasId() || "").trim().toLowerCase();
+
+  return handleName && atlasFolderName && handleName === atlasFolderName
+    ? PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER
+    : "";
+}
+
+async function isValidProjectArchiveRootHandle(handle, atlasId = getActiveAtlasId()) {
+  return Boolean(await getProjectArchiveConnectionMode(handle, atlasId));
 }
 
 async function getProjectArchiveDirectoryHandle(prompt = true) {
@@ -656,8 +672,13 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
     return null;
   }
 
-  if (!(await isValidProjectArchiveRootHandle(state.projectArchiveRootHandle))) {
+  const existingMode = await getProjectArchiveConnectionMode(state.projectArchiveRootHandle);
+
+  if (!existingMode) {
     state.projectArchiveRootHandle = null;
+    state.projectArchiveConnectionMode = "";
+  } else {
+    state.projectArchiveConnectionMode = existingMode;
   }
 
   if (!state.projectArchiveRootHandle) {
@@ -666,15 +687,22 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
     }
 
     const pickedHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const pickedMode = await getProjectArchiveConnectionMode(pickedHandle);
 
-    if (!(await isValidProjectArchiveRootHandle(pickedHandle))) {
+    if (!pickedMode) {
       throw createProjectArchiveRootError();
     }
 
     state.projectArchiveRootHandle = pickedHandle;
+    state.projectArchiveConnectionMode = pickedMode;
   }
 
   const rootHandle = state.projectArchiveRootHandle;
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+    return rootHandle;
+  }
+
   const pdfsHandle = await rootHandle.getDirectoryHandle(PROJECT_PDFS_FOLDER, { create: true });
 
   return pdfsHandle.getDirectoryHandle(MODERATOR_PROJECT_ARCHIVE_FOLDER, { create: true });
@@ -691,7 +719,12 @@ async function getArchiveSubdirectoryHandle(baseHandle, pathSegments) {
 }
 
 async function getProjectPlatePackageHandle(archiveHandle, regionId, atlasId = getActiveAtlasId()) {
-  return getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId, regionId]);
+  return getArchiveSubdirectoryHandle(
+    archiveHandle,
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER
+      ? [regionId]
+      : [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId, regionId]
+  );
 }
 
 async function writeArchiveFile(fileHandle, contents) {
@@ -779,15 +812,19 @@ async function resolveModeratorProjectPdfFile(regionId, sources = []) {
 
 async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "draft-save", options = {}) {
   const atlasId = draft.atlasId || getActiveAtlasId();
-  const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
   const packageHandle = await getProjectPlatePackageHandle(archiveHandle, draft.regionId, atlasId);
   const payload = buildModeratorHistoryPayload(draft, reason, options);
   const payloadText = JSON.stringify(payload, null, 2);
   const timestampToken = buildTimestampToken();
   const snapshotFileName = `${timestampToken}-${String(reason || "draft-save").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}.json`;
 
-  await writeArchiveTextFile(historyHandle, snapshotFileName, payloadText);
-  await writeArchiveTextFile(historyHandle, "latest.json", payloadText);
+  if (state.projectArchiveConnectionMode !== PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+    const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
+
+    await writeArchiveTextFile(historyHandle, snapshotFileName, payloadText);
+    await writeArchiveTextFile(historyHandle, "latest.json", payloadText);
+  }
+
   await writeArchiveTextFile(packageHandle, "latest.json", payloadText);
 
   return {
@@ -852,10 +889,16 @@ async function syncDraftToProjectArchive({
 }
 
 async function writeProjectArchiveManifest(archiveHandle, draftMap) {
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+    return false;
+  }
+
   const manifestHandle = await archiveHandle.getFileHandle(MODERATOR_PROJECT_MANIFEST_FILE, { create: true });
   const writable = await manifestHandle.createWritable();
   await writable.write(JSON.stringify(buildProjectArchiveManifest(draftMap), null, 2));
   await writable.close();
+
+  return true;
 }
 
 function getRegionByIndex(index) {
@@ -1065,6 +1108,14 @@ function switchAtlas(atlasId) {
   state.index = 0;
   state.query = "";
 
+  if (
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER &&
+    String(state.projectArchiveRootHandle?.name || "").trim().toLowerCase() !== String(nextAtlas.id || "").trim().toLowerCase()
+  ) {
+    state.projectArchiveRootHandle = null;
+    state.projectArchiveConnectionMode = "";
+  }
+
   if (elements.contentsSearch) {
     elements.contentsSearch.value = "";
   }
@@ -1128,16 +1179,19 @@ function updateModeratorProjectRootMeta(regionId = state.moderatorRegionId || el
   }
 
   const packageTarget = getModeratorProjectPackageTarget(regionId);
+  const isAtlasFolderConnection = state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER;
 
   if (elements.moderatorProjectRoot) {
     elements.moderatorProjectRoot.textContent = state.projectArchiveRootHandle
-      ? "Change project root"
-      : "Connect project root";
+      ? "Change save folder"
+      : "Connect save folder";
   }
 
   elements.moderatorProjectRootMeta.textContent = state.projectArchiveRootHandle
-    ? `Connected project root: ${state.projectArchiveRootHandle.name}. Plate packages will be written under ${packageTarget}`
-    : `No project root connected yet. Connect the atlas repo root to save plate packages under ${packageTarget}`;
+    ? isAtlasFolderConnection
+      ? `Connected atlas save folder: ${state.projectArchiveRootHandle.name}. Plate packages will be written directly under ${packageTarget}`
+      : `Connected project root: ${state.projectArchiveRootHandle.name}. Plate packages will be written under ${packageTarget}`
+    : `No save folder connected yet. Connect the atlas repo root or the current atlas folder to save plate packages under ${packageTarget}`;
 }
 
 async function connectModeratorProjectRoot() {
@@ -1151,23 +1205,26 @@ async function connectModeratorProjectRoot() {
 
   try {
     const pickedHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const pickedMode = await getProjectArchiveConnectionMode(pickedHandle);
 
-    if (!(await isValidProjectArchiveRootHandle(pickedHandle))) {
+    if (!pickedMode) {
       throw createProjectArchiveRootError();
     }
 
     state.projectArchiveRootHandle = pickedHandle;
+    state.projectArchiveConnectionMode = pickedMode;
     updateModeratorProjectRootMeta(elements.moderatorRegion.value);
     setModeratorStatus(
-      `Connected project root ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.`
+      `Connected save folder ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.`
     );
   } catch (error) {
     if (error?.name === "AbortError") {
-      setModeratorStatus("Project root selection was cancelled.", true);
+      setModeratorStatus("Save folder selection was cancelled.", true);
       return;
     }
 
     state.projectArchiveRootHandle = null;
+    state.projectArchiveConnectionMode = "";
     updateModeratorProjectRootMeta(elements.moderatorRegion.value);
     setModeratorStatus(error?.message || PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE, true);
   }
@@ -2344,7 +2401,7 @@ async function archiveModeratorPdfToProject() {
   let nextDraftMap = new Map(state.moderatorDrafts);
 
   try {
-    setModeratorStatus("Archiving this plate package into the connected project root.");
+    setModeratorStatus("Archiving this plate package into the connected save folder.");
     const projectResult = await syncDraftToProjectArchive({
       draft: nextDraft,
       regionId,
@@ -2356,7 +2413,7 @@ async function archiveModeratorPdfToProject() {
 
     if (!projectResult.saved) {
       updateModeratorProjectRootMeta(regionId);
-      setModeratorStatus("Connect the atlas project root first, then archive this plate package into the repo.", true);
+      setModeratorStatus("Connect a save folder first, then archive this plate package.", true);
       return;
     }
 
@@ -2372,12 +2429,14 @@ async function archiveModeratorPdfToProject() {
 
     if (error?.name === "ProjectArchiveRootError") {
       state.projectArchiveRootHandle = null;
+      state.projectArchiveConnectionMode = "";
       updateModeratorProjectRootMeta(regionId);
       setModeratorStatus(error.message, true);
       return;
     }
 
     state.projectArchiveRootHandle = null;
+    state.projectArchiveConnectionMode = "";
     updateModeratorProjectRootMeta(regionId);
     setModeratorStatus(
       `Could not archive ${projectPdfFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH}. Recheck folder permissions and try again.`,
@@ -2485,6 +2544,8 @@ async function integrateModeratorPdfIntoAtlas() {
   } catch (error) {
     if (error?.name === "ProjectArchiveRootError") {
       archiveErrorMessage = error.message;
+      state.projectArchiveRootHandle = null;
+      state.projectArchiveConnectionMode = "";
       updateModeratorProjectRootMeta(regionId);
     }
 
@@ -2519,7 +2580,7 @@ async function integrateModeratorPdfIntoAtlas() {
         ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview to ${nextDraft.atlasPreviewPath}, but browser storage could not be updated for this profile.`
         : archiveErrorMessage
           ? `${archiveErrorMessage} The plate preview is available until this page reloads, but browser storage could not keep a durable copy.`
-          : "Could not persist the integrated atlas preview in browser storage. The preview is available until this page reloads; choose the project root or its pdfs folder for a durable save.",
+          : "Could not persist the integrated atlas preview in browser storage. The preview is available until this page reloads; connect a save folder for a durable save.",
       true
     );
     return;
@@ -2535,7 +2596,7 @@ async function integrateModeratorPdfIntoAtlas() {
       : archiveErrorMessage
         ? `${archiveErrorMessage} The plate preview was only kept in browser storage for the current profile.`
       : !state.projectArchiveRootHandle
-        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId}. Connect the atlas project root to also save the PDF, JPG, and latest.json into the repo.`
+        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId}. Connect a save folder to also save the PDF, JPG, and latest.json.`
       : usedPreviewFallback
         ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} using the visible preview size. Use Preview in atlas to inspect it.`
         : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} with a higher-resolution PDF render. Use Preview in atlas to inspect it.`
@@ -3041,11 +3102,14 @@ function wireEvents() {
     } catch (error) {
       if (error?.name === "ProjectArchiveRootError") {
         autoArchiveErrorMessage = error.message;
+        state.projectArchiveRootHandle = null;
+        state.projectArchiveConnectionMode = "";
         updateModeratorProjectRootMeta(regionId);
       }
 
       if (error?.name !== "AbortError") {
         state.projectArchiveRootHandle = null;
+        state.projectArchiveConnectionMode = "";
         updateModeratorProjectRootMeta(regionId);
       }
     }
@@ -3057,7 +3121,7 @@ function wireEvents() {
           : autoArchiveErrorMessage
             ? `${autoArchiveErrorMessage} ${file.name} is attached for this session, but it is not yet archived into the repo.`
           : autoArchiveSkipped
-            ? `Attached ${file.name}. The preview is rendering now; use Connect project root to archive the plate package into this repo.`
+            ? `Attached ${file.name}. The preview is rendering now; use Connect save folder to archive the plate package.`
             : `Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`
       );
       return;
