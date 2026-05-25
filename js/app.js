@@ -781,22 +781,26 @@ async function restoreStoredProjectArchiveRootHandle(atlasId = getActiveAtlasId(
 
   if (!projectArchiveRootHandleRestorePromise) {
     projectArchiveRootHandleRestorePromise = (async () => {
-      const storedHandle = await loadStoredProjectArchiveRootHandle();
+      try {
+        const storedHandle = await loadStoredProjectArchiveRootHandle();
 
-      if (!storedHandle || !(await hasProjectArchiveHandlePermission(storedHandle, "read"))) {
+        if (!storedHandle || !(await hasProjectArchiveHandlePermission(storedHandle, "read"))) {
+          return null;
+        }
+
+        const storedMode = await getProjectArchiveConnectionMode(storedHandle, atlasId);
+
+        if (!storedMode) {
+          await storeProjectArchiveRootHandle(null);
+          return null;
+        }
+
+        state.projectArchiveRootHandle = storedHandle;
+        state.projectArchiveConnectionMode = storedMode;
+        return storedHandle;
+      } catch {
         return null;
       }
-
-      const storedMode = await getProjectArchiveConnectionMode(storedHandle, atlasId);
-
-      if (!storedMode) {
-        await storeProjectArchiveRootHandle(null);
-        return null;
-      }
-
-      state.projectArchiveRootHandle = storedHandle;
-      state.projectArchiveConnectionMode = storedMode;
-      return storedHandle;
     })().finally(() => {
       projectArchiveRootHandleRestorePromise = null;
     });
