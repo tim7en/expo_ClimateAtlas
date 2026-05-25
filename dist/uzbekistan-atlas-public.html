@@ -4906,13 +4906,18 @@ function fillDrawer(region) {
   ).join("");
 }
 
-function loadRenderedMapSource(region, source, requestId) {
+function loadRenderedMapSource(region, source, requestId, options = {}) {
   const sources = (Array.isArray(source) ? source : [source])
     .map((entry) => String(entry || "").trim())
     .filter(Boolean);
+  const preserveReadyMap = Boolean(options.preserveReadyMap);
 
   if (!sources.length) {
     if (state.pendingMapId !== requestId) {
+      return;
+    }
+
+    if (preserveReadyMap && state.mapReady) {
       return;
     }
 
@@ -4928,6 +4933,10 @@ function loadRenderedMapSource(region, source, requestId) {
 
     if (!nextSource) {
       if (state.pendingMapId !== requestId) {
+        return;
+      }
+
+      if (preserveReadyMap && state.mapReady) {
         return;
       }
 
@@ -5012,11 +5021,29 @@ function renderMap(region) {
   }
 
   if (hasPdfSource && PDFJS_LIB?.getDocument) {
-    void Promise.all([resolveRegionAtlasPreviewImageSource(region), renderRegionProjectPdfImage(region)]).then(
-      ([previewImageSource, pdfImage]) => {
-        loadRenderedMapSource(region, [previewImageSource, pdfImage, getRegionAtlasFallbackImageSource(region)], requestId);
-      }
-    );
+    void resolveRegionAtlasPreviewImageSource(region)
+      .then((previewImageSource) => {
+        loadRenderedMapSource(region, [previewImageSource, getRegionAtlasFallbackImageSource(region)], requestId, {
+          preserveReadyMap: true
+        });
+      })
+      .catch(() => {
+        loadRenderedMapSource(region, [getRegionAtlasFallbackImageSource(region)], requestId, {
+          preserveReadyMap: true
+        });
+      });
+
+    void renderRegionProjectPdfImage(region)
+      .then((pdfImage) => {
+        if (state.pendingMapId === requestId && !state.mapReady) {
+          loadRenderedMapSource(region, [pdfImage], requestId, {
+            preserveReadyMap: true
+          });
+        }
+      })
+      .catch(() => {
+        // The saved JPG path remains the primary source; PDF rendering is only a fallback.
+      });
     return;
   }
 
