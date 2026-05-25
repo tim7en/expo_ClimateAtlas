@@ -13,6 +13,10 @@ const PROJECT_PDFS_FOLDER = "pdfs";
 const MODERATOR_PROJECT_ARCHIVE_FOLDER = "moderator-library";
 const MODERATOR_PROJECT_ARCHIVE_PATH = `${PROJECT_PDFS_FOLDER}/${MODERATOR_PROJECT_ARCHIVE_FOLDER}`;
 const MODERATOR_PROJECT_MANIFEST_FILE = "atlas-project-memory.json";
+const MODERATOR_PROJECT_PREVIEW_FOLDER = "atlas-previews";
+const MODERATOR_PROJECT_PREVIEW_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODERATOR_PROJECT_PREVIEW_FOLDER}`;
+const MODERATOR_PROJECT_HISTORY_FOLDER = "draft-history";
+const MODERATOR_PROJECT_HISTORY_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODERATOR_PROJECT_HISTORY_FOLDER}`;
 const DEFAULT_PLATE_TYPE = "Atlas plate";
 const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
@@ -282,6 +286,7 @@ const elements = {
   moderatorArchive: document.querySelector("#moderator-archive"),
   moderatorIntegrate: document.querySelector("#moderator-integrate"),
   moderatorPreview: document.querySelector("#moderator-preview"),
+  moderatorDeletePlate: document.querySelector("#moderator-delete-plate"),
   moderatorReset: document.querySelector("#moderator-reset"),
   moderatorExport: document.querySelector("#moderator-export"),
   moderatorImport: document.querySelector("#moderator-import"),
@@ -388,6 +393,10 @@ function normalizeDraft(rawDraft, atlasId = getActiveAtlasId()) {
     projectPdfName: String(rawDraft.projectPdfName || rawDraft.projectPdfFileName || "").trim(),
     projectPdfPath: String(rawDraft.projectPdfPath || "").trim(),
     projectPdfSavedAt: String(rawDraft.projectPdfSavedAt || "").trim(),
+    projectDraftPath: String(rawDraft.projectDraftPath || rawDraft.descriptionPath || "").trim(),
+    projectDraftSavedAt: String(rawDraft.projectDraftSavedAt || "").trim(),
+    atlasPreviewPath: String(rawDraft.atlasPreviewPath || rawDraft.atlasPreviewFile || "").trim(),
+    atlasPreviewSavedAt: String(rawDraft.atlasPreviewSavedAt || "").trim(),
     atlasPreviewImage: String(rawDraft.atlasPreviewImage || rawDraft.atlasPlateImage || "").trim(),
     atlasPreviewPage: Number.isFinite(Number(rawDraft.atlasPreviewPage))
       ? Math.max(1, Math.round(Number(rawDraft.atlasPreviewPage)))
@@ -499,6 +508,10 @@ function buildProjectPdfFileName(value, regionId) {
   return `${slug}.pdf`;
 }
 
+function hasSavedAtlasPreview(source) {
+  return Boolean(source?.atlasPreviewPath || source?.atlasPreviewImage);
+}
+
 function buildProjectArchiveManifest(draftMap) {
   return {
     version: 1,
@@ -507,7 +520,7 @@ function buildProjectArchiveManifest(draftMap) {
     updatedAt: new Date().toISOString(),
     archiveFolder: MODERATOR_PROJECT_ARCHIVE_PATH,
     drafts: serializeDraftMap(draftMap).map((draft) => {
-      const region = getEffectiveRegion(draft.regionId);
+      const region = getDraftRegionSnapshot(draft);
 
       return {
         atlasId: draft.atlasId || getActiveAtlasId(),
@@ -523,23 +536,81 @@ function buildProjectArchiveManifest(draftMap) {
         projectPdfName: draft.projectPdfName || "",
         projectPdfPath: draft.projectPdfPath || "",
         projectPdfSavedAt: draft.projectPdfSavedAt || "",
+        projectDraftPath: draft.projectDraftPath || "",
+        projectDraftSavedAt: draft.projectDraftSavedAt || "",
         caption: draft.caption || "",
         summary: draft.summary || "",
         moderatorNote: draft.moderatorNote || "",
+        atlasPreviewPath: draft.atlasPreviewPath || "",
+        atlasPreviewSavedAt: draft.atlasPreviewSavedAt || "",
         atlasPreviewPage: draft.atlasPreviewPage || 0,
-        atlasPreviewSaved: Boolean(draft.atlasPreviewImage),
+        atlasPreviewSaved: hasSavedAtlasPreview(draft),
         updatedAt: draft.updatedAt || ""
       };
     })
   };
 }
 
-async function getProjectArchiveDirectoryHandle() {
+function buildTimestampToken(date = new Date()) {
+  return date.toISOString().replace(/[:.]/g, "-");
+}
+
+function buildProjectPreviewFileName(regionId, pageNumber = 1) {
+  const slug = slugifyProjectPdfName(regionId) || "atlas-preview";
+  return `${slug}-page-${String(Math.max(1, Number(pageNumber) || 1)).padStart(2, "0")}.jpg`;
+}
+
+function buildProjectPreviewPath(regionId, pageNumber = 1, atlasId = getActiveAtlasId()) {
+  return `${MODERATOR_PROJECT_PREVIEW_PATH}/${atlasId}/${buildProjectPreviewFileName(regionId, pageNumber)}`;
+}
+
+function buildProjectDraftLatestPath(regionId, atlasId = getActiveAtlasId()) {
+  return `${MODERATOR_PROJECT_HISTORY_PATH}/${atlasId}/${regionId}/latest.json`;
+}
+
+function buildModeratorHistoryPayload(draft, reason = "draft-save", options = {}) {
+  const region = getDraftRegionSnapshot(draft) || buildCustomPlateFromDraft(draft) || {};
+
+  return {
+    version: 1,
+    reason,
+    savedAt: new Date().toISOString(),
+    atlasId: draft.atlasId || getActiveAtlasId(),
+    atlasName: getActiveAtlasName(),
+    deleted: Boolean(options.deleted),
+    deletedAt: options.deleted ? new Date().toISOString() : "",
+    plate: {
+      regionId: draft.regionId,
+      name: region.name || draft.name || draft.regionId,
+      uz: region.uz || draft.uz || "",
+      type: region.type || draft.type || DEFAULT_PLATE_TYPE,
+      scale: region.scale || draft.scale || DEFAULT_PLATE_SCALE,
+      map: region.map || draft.map || "",
+      isCustomPlate: Boolean(draft.isCustomPlate),
+      sourcePdf: draft.sourcePdf || "",
+      sourceFileSize: draft.sourceFileSize || "",
+      projectPdfName: draft.projectPdfName || "",
+      projectPdfPath: draft.projectPdfPath || "",
+      atlasPreviewPath: draft.atlasPreviewPath || "",
+      atlasPreviewPage: draft.atlasPreviewPage || 0,
+      caption: draft.caption || "",
+      summary: draft.summary || "",
+      moderatorNote: draft.moderatorNote || "",
+      updatedAt: draft.updatedAt || ""
+    }
+  };
+}
+
+async function getProjectArchiveDirectoryHandle(prompt = true) {
   if (typeof window.showDirectoryPicker !== "function") {
     return null;
   }
 
   if (!state.projectArchiveRootHandle) {
+    if (!prompt) {
+      return null;
+    }
+
     state.projectArchiveRootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
   }
 
@@ -557,6 +628,109 @@ async function getProjectArchiveDirectoryHandle() {
   return pdfsHandle.getDirectoryHandle(MODERATOR_PROJECT_ARCHIVE_FOLDER, { create: true });
 }
 
+async function getArchiveSubdirectoryHandle(baseHandle, pathSegments) {
+  let currentHandle = baseHandle;
+
+  for (const segment of pathSegments) {
+    currentHandle = await currentHandle.getDirectoryHandle(segment, { create: true });
+  }
+
+  return currentHandle;
+}
+
+async function writeArchiveFile(fileHandle, contents) {
+  const writable = await fileHandle.createWritable();
+  await writable.write(contents);
+  await writable.close();
+}
+
+async function writeArchiveTextFile(directoryHandle, fileName, text) {
+  const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+  await writeArchiveFile(fileHandle, text);
+}
+
+async function writeArchiveBlobFile(directoryHandle, fileName, blob) {
+  const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+  await writeArchiveFile(fileHandle, blob);
+}
+
+async function dataUrlToBlob(dataUrl) {
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
+async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "draft-save", options = {}) {
+  const atlasId = draft.atlasId || getActiveAtlasId();
+  const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
+  const payload = buildModeratorHistoryPayload(draft, reason, options);
+  const payloadText = JSON.stringify(payload, null, 2);
+  const timestampToken = buildTimestampToken();
+  const snapshotFileName = `${timestampToken}-${String(reason || "draft-save").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}.json`;
+
+  await writeArchiveTextFile(historyHandle, snapshotFileName, payloadText);
+  await writeArchiveTextFile(historyHandle, "latest.json", payloadText);
+
+  return {
+    projectDraftPath: buildProjectDraftLatestPath(draft.regionId, atlasId),
+    projectDraftSavedAt: new Date().toLocaleString()
+  };
+}
+
+async function syncDraftToProjectArchive({
+  draft,
+  regionId,
+  sessionFile,
+  previewDataUrl = "",
+  previewPage = 1,
+  savePdfCopy = false,
+  promptForHandle = false,
+  reason = "draft-save",
+  deleted = false
+}) {
+  const archiveHandle = await getProjectArchiveDirectoryHandle(promptForHandle);
+
+  if (!archiveHandle) {
+    return { draft, saved: false, skipped: true };
+  }
+
+  const nextDraft = { ...draft };
+  const timestamp = new Date().toLocaleString();
+
+  if (savePdfCopy && sessionFile) {
+    const fileName = buildProjectPdfFileName(
+      nextDraft.projectPdfName || elements.moderatorProjectPdfName.value || sessionFile.name,
+      regionId
+    );
+
+    await writeArchiveBlobFile(archiveHandle, fileName, sessionFile);
+    nextDraft.projectPdfName = fileName;
+    nextDraft.projectPdfPath = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${fileName}`;
+    nextDraft.projectPdfSavedAt = timestamp;
+  }
+
+  if (previewDataUrl) {
+    const atlasId = nextDraft.atlasId || getActiveAtlasId();
+    const previewHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId]);
+    const previewFileName = buildProjectPreviewFileName(regionId, previewPage);
+
+    await writeArchiveBlobFile(previewHandle, previewFileName, await dataUrlToBlob(previewDataUrl));
+    nextDraft.atlasPreviewPath = buildProjectPreviewPath(regionId, previewPage, atlasId);
+    nextDraft.atlasPreviewSavedAt = timestamp;
+    nextDraft.atlasPreviewImage = "";
+  }
+
+  const historyPaths = await writeModeratorDraftHistoryFiles(archiveHandle, nextDraft, reason, { deleted });
+  nextDraft.projectDraftPath = historyPaths.projectDraftPath;
+  nextDraft.projectDraftSavedAt = historyPaths.projectDraftSavedAt;
+
+  return {
+    draft: nextDraft,
+    saved: true,
+    skipped: false,
+    archiveHandle
+  };
+}
+
 async function writeProjectArchiveManifest(archiveHandle, draftMap) {
   const manifestHandle = await archiveHandle.getFileHandle(MODERATOR_PROJECT_MANIFEST_FILE, { create: true });
   const writable = await manifestHandle.createWritable();
@@ -572,34 +746,23 @@ function getDraft(regionId) {
   return state.moderatorDrafts.get(regionId) || null;
 }
 
-function getEffectiveRegion(regionOrId) {
-  const baseRegion = typeof regionOrId === "string" ? REGIONS[INDEX_BY_ID.get(regionOrId)] : regionOrId;
+function getDraftRegionSnapshot(draft) {
+  if (!draft) {
+    return null;
+  }
+
+  const baseRegion = BASE_REGIONS[BASE_INDEX_BY_ID.get(draft.regionId)] || buildCustomPlateFromDraft(draft);
 
   if (!baseRegion) {
     return null;
   }
 
   const baseAtlasPreviewImage = baseRegion.atlasPreviewImage || "";
+  const baseAtlasPreviewPath = baseRegion.atlasPreviewPath || "";
   const baseAtlasPreviewPage = baseRegion.atlasPreviewPage || 0;
   const baseProjectPdfName = baseRegion.projectPdfName || "";
   const baseProjectPdfPath = baseRegion.projectPdfPath || "";
   const baseProjectPdfSavedAt = baseRegion.projectPdfSavedAt || "";
-
-  const draft = getDraft(baseRegion.id);
-  if (!draft) {
-    return {
-      ...baseRegion,
-      map: baseAtlasPreviewImage || baseRegion.map,
-      atlasPreviewImage: baseAtlasPreviewImage,
-      atlasPreviewPage: baseAtlasPreviewPage,
-      projectPdfName: baseProjectPdfName,
-      projectPdfPath: baseProjectPdfPath,
-      projectPdfSavedAt: baseProjectPdfSavedAt
-    };
-  }
-
-  const atlasPreviewImage = draft.atlasPreviewImage || baseAtlasPreviewImage;
-  const atlasPreviewPage = draft.atlasPreviewPage || baseAtlasPreviewPage;
 
   return {
     ...baseRegion,
@@ -607,7 +770,7 @@ function getEffectiveRegion(regionOrId) {
     uz: draft.uz || baseRegion.uz || "",
     type: draft.type || baseRegion.type || DEFAULT_PLATE_TYPE,
     scale: draft.scale || baseRegion.scale || DEFAULT_PLATE_SCALE,
-    map: atlasPreviewImage || draft.map || baseRegion.map,
+    map: draft.atlasPreviewPath || baseAtlasPreviewPath || draft.atlasPreviewImage || baseAtlasPreviewImage || draft.map || baseRegion.map,
     caption: draft.caption || baseRegion.caption,
     summary: draft.summary || baseRegion.summary,
     moderatorNote: draft.moderatorNote || baseRegion.moderatorNote || "",
@@ -616,13 +779,44 @@ function getEffectiveRegion(regionOrId) {
     projectPdfName: draft.projectPdfName || baseProjectPdfName,
     projectPdfPath: draft.projectPdfPath || baseProjectPdfPath,
     projectPdfSavedAt: draft.projectPdfSavedAt || baseProjectPdfSavedAt,
-    atlasPreviewImage,
-    atlasPreviewPage,
+    projectDraftPath: draft.projectDraftPath || baseRegion.projectDraftPath || "",
+    projectDraftSavedAt: draft.projectDraftSavedAt || baseRegion.projectDraftSavedAt || "",
+    atlasPreviewPath: draft.atlasPreviewPath || baseAtlasPreviewPath,
+    atlasPreviewSavedAt: draft.atlasPreviewSavedAt || baseRegion.atlasPreviewSavedAt || "",
+    atlasPreviewImage: draft.atlasPreviewImage || baseAtlasPreviewImage,
+    atlasPreviewPage: draft.atlasPreviewPage || baseAtlasPreviewPage,
     isCustomPlate: Boolean(draft.isCustomPlate || baseRegion.isCustomPlate),
     customOrder: draft.customOrder ?? baseRegion.customOrder ?? 0,
     updatedAt: draft.updatedAt || baseRegion.updatedAt || "",
     hasModeratorDraft: true
   };
+}
+
+function getEffectiveRegion(regionOrId) {
+  const baseRegion = typeof regionOrId === "string" ? REGIONS[INDEX_BY_ID.get(regionOrId)] : regionOrId;
+
+  if (!baseRegion) {
+    return null;
+  }
+
+  const draft = getDraft(baseRegion.id);
+  if (!draft) {
+    return {
+      ...baseRegion,
+      map: baseRegion.atlasPreviewPath || baseRegion.atlasPreviewImage || baseRegion.map,
+      atlasPreviewPath: baseRegion.atlasPreviewPath || "",
+      atlasPreviewSavedAt: baseRegion.atlasPreviewSavedAt || "",
+      atlasPreviewImage: baseRegion.atlasPreviewImage || "",
+      atlasPreviewPage: baseRegion.atlasPreviewPage || 0,
+      projectPdfName: baseRegion.projectPdfName || "",
+      projectPdfPath: baseRegion.projectPdfPath || "",
+      projectPdfSavedAt: baseRegion.projectPdfSavedAt || "",
+      projectDraftPath: baseRegion.projectDraftPath || "",
+      projectDraftSavedAt: baseRegion.projectDraftSavedAt || ""
+    };
+  }
+
+  return getDraftRegionSnapshot(draft);
 }
 
 function getAllEffectiveRegions() {
@@ -906,7 +1100,7 @@ function closeDrawer() {
 function fillDrawer(region) {
   const draftFacts = [];
 
-  if (region.atlasPreviewImage) {
+  if (hasSavedAtlasPreview(region)) {
     draftFacts.push({
       key: "focus",
       label: "Atlas preview",
@@ -929,6 +1123,14 @@ function fillDrawer(region) {
       key: "focus",
       label: "Project archive",
       value: region.projectPdfPath
+    });
+  }
+
+  if (region.projectDraftPath) {
+    draftFacts.push({
+      key: "focus",
+      label: "Draft record",
+      value: region.projectDraftPath
     });
   }
 
@@ -1252,7 +1454,9 @@ function getDefaultDraftValues(regionId) {
     sourcePdf: draft?.sourcePdf || "",
     sourceFileSize: draft?.sourceFileSize || "",
     projectPdfName: draft?.projectPdfName || region?.projectPdfName || "",
-    projectPdfPath: draft?.projectPdfPath || region?.projectPdfPath || ""
+    projectPdfPath: draft?.projectPdfPath || region?.projectPdfPath || "",
+    projectDraftPath: draft?.projectDraftPath || region?.projectDraftPath || "",
+    atlasPreviewPath: draft?.atlasPreviewPath || region?.atlasPreviewPath || ""
   };
 }
 
@@ -1632,10 +1836,15 @@ function populateModeratorForm(regionId) {
       : `Plate key ${nextRegionId} · Existing atlas plate`;
   }
 
+  if (elements.moderatorDeletePlate) {
+    elements.moderatorDeletePlate.hidden = !defaults.isCustomPlate;
+  }
+
   if (defaults.sourcePdf) {
     const sizeText = defaults.sourceFileSize ? ` · ${defaults.sourceFileSize}` : "";
     const archiveText = defaults.projectPdfPath ? ` · Archived in ${defaults.projectPdfPath}` : "";
-    elements.moderatorFileMeta.textContent = `Recorded source PDF: ${defaults.sourcePdf}${sizeText}${archiveText}`;
+    const draftText = defaults.projectDraftPath ? ` · Record ${defaults.projectDraftPath}` : "";
+    elements.moderatorFileMeta.textContent = `Recorded source PDF: ${defaults.sourcePdf}${sizeText}${archiveText}${draftText}`;
   } else {
     elements.moderatorFileMeta.textContent = "No PDF selected yet. Attach one to preview it during this session and to record its filename in the handoff package.";
   }
@@ -1674,12 +1883,17 @@ function buildModeratorDraftList() {
         detailParts.push(`Project copy: ${draft.projectPdfPath}`);
       }
 
-      if (draft.atlasPreviewImage) {
+      if (hasSavedAtlasPreview(draft)) {
         detailParts.push(`Atlas preview saved${draft.atlasPreviewPage ? ` · Page ${draft.atlasPreviewPage}` : ""}`);
+      }
+
+      if (draft.projectDraftPath) {
+        detailParts.push(`Draft record: ${draft.projectDraftPath}`);
       }
 
       const detail = detailParts.join(" · ") || "Description-only draft";
       const updated = draft.updatedAt ? `Updated ${draft.updatedAt}` : "Draft saved";
+      const deleteLabel = draft.isCustomPlate ? "Delete plate" : "Delete draft";
 
       return `
         <div class="draft-row" data-region-id="${escapeHtml(draft.regionId)}">
@@ -1691,7 +1905,7 @@ function buildModeratorDraftList() {
           <div class="draft-row-actions">
             <button class="draft-action" type="button" data-action="load" data-region-id="${escapeHtml(draft.regionId)}">Load</button>
             <button class="draft-action" type="button" data-action="preview" data-region-id="${escapeHtml(draft.regionId)}">Preview</button>
-            <button class="draft-action" type="button" data-action="delete" data-region-id="${escapeHtml(draft.regionId)}">Delete</button>
+            <button class="draft-action${draft.isCustomPlate ? " draft-action-danger" : ""}" type="button" data-action="delete" data-region-id="${escapeHtml(draft.regionId)}">${deleteLabel}</button>
           </div>
         </div>
       `;
@@ -1761,7 +1975,11 @@ function createDraftFromForm() {
     projectPdfName: requestedProjectPdfName,
     projectPdfPath: keepArchivedProjectPath ? existingDraft?.projectPdfPath || "" : "",
     projectPdfSavedAt: keepArchivedProjectPath ? existingDraft?.projectPdfSavedAt || "" : "",
-    atlasPreviewImage: existingDraft?.atlasPreviewImage || "",
+    projectDraftPath: existingDraft?.projectDraftPath || "",
+    projectDraftSavedAt: existingDraft?.projectDraftSavedAt || "",
+    atlasPreviewPath: existingDraft?.atlasPreviewPath || "",
+    atlasPreviewSavedAt: existingDraft?.atlasPreviewSavedAt || "",
+    atlasPreviewImage: existingDraft?.atlasPreviewPath ? "" : existingDraft?.atlasPreviewImage || "",
     atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
     updatedAt: new Date().toLocaleString()
   };
@@ -1778,14 +1996,15 @@ function createDraftFromForm() {
     Boolean(draft.moderatorNote) ||
     Boolean(draft.sourcePdf) ||
     Boolean(draft.projectPdfName) ||
-    Boolean(draft.atlasPreviewImage);
+    hasSavedAtlasPreview(draft);
 
   return isMeaningful ? draft : null;
 }
 
-function saveModeratorDraft() {
+async function saveModeratorDraft() {
   const draft = createDraftFromForm();
   const regionId = elements.moderatorRegion.value;
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
 
   if (!draft) {
     state.moderatorDrafts.delete(regionId);
@@ -1796,11 +2015,41 @@ function saveModeratorDraft() {
     return;
   }
 
-  state.moderatorDrafts.set(regionId, draft);
+  let nextDraft = draft;
+  let archiveHandle = null;
+
+  try {
+    const projectResult = await syncDraftToProjectArchive({
+      draft: nextDraft,
+      regionId,
+      sessionFile,
+      savePdfCopy: Boolean(sessionFile && !nextDraft.projectPdfPath),
+      promptForHandle: false,
+      reason: "draft-save"
+    });
+
+    if (projectResult.saved) {
+      nextDraft = projectResult.draft;
+      archiveHandle = projectResult.archiveHandle;
+    }
+  } catch {
+    archiveHandle = null;
+  }
+
+  state.moderatorDrafts.set(regionId, nextDraft);
+
+  if (archiveHandle) {
+    await writeProjectArchiveManifest(archiveHandle, new Map(state.moderatorDrafts));
+  }
+
   persistDrafts();
   syncModeratorViews();
   populateModeratorForm(regionId);
-  setModeratorStatus(`Draft saved for ${getEffectiveRegion(regionId)?.name}.`);
+  setModeratorStatus(
+    archiveHandle
+      ? `Draft saved for ${getEffectiveRegion(regionId)?.name}. Project record updated in ${nextDraft.projectDraftPath}.`
+      : `Draft saved for ${getEffectiveRegion(regionId)?.name}.`
+  );
 }
 
 async function archiveModeratorPdfToProject() {
@@ -1822,47 +2071,54 @@ async function archiveModeratorPdfToProject() {
     return;
   }
 
-  const fileName = buildProjectPdfFileName(
-    elements.moderatorProjectPdfName.value || existingDraft?.projectPdfName || sessionFile.name,
-    regionId
-  );
   const timestamp = new Date().toLocaleString();
-  const nextDraft = {
+  let nextDraft = {
     ...(createDraftFromForm() || {
       atlasId: getActiveAtlasId(),
       regionId,
+      name: existingDraft?.name || currentRegion?.name || buildCustomPlateName(regionId),
+      uz: existingDraft?.uz || currentRegion?.uz || "",
+      type: existingDraft?.type || currentRegion?.type || DEFAULT_PLATE_TYPE,
+      scale: existingDraft?.scale || currentRegion?.scale || DEFAULT_PLATE_SCALE,
+      map: existingDraft?.map || currentRegion?.map || `assets/maps/${regionId}.jpg`,
       caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
       summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
       moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
       sourcePdf: sessionFile.name,
       sourceFileSize: formatBytes(sessionFile.size),
-      atlasPreviewImage: existingDraft?.atlasPreviewImage || "",
+      projectDraftPath: existingDraft?.projectDraftPath || "",
+      projectDraftSavedAt: existingDraft?.projectDraftSavedAt || "",
+      atlasPreviewPath: existingDraft?.atlasPreviewPath || "",
+      atlasPreviewSavedAt: existingDraft?.atlasPreviewSavedAt || "",
+      atlasPreviewImage: existingDraft?.atlasPreviewPath ? "" : existingDraft?.atlasPreviewImage || "",
       atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
       updatedAt: timestamp
     }),
     sourcePdf: sessionFile.name,
     sourceFileSize: formatBytes(sessionFile.size),
-    projectPdfName: fileName,
-    projectPdfPath: `${MODERATOR_PROJECT_ARCHIVE_PATH}/${fileName}`,
-    projectPdfSavedAt: timestamp,
     updatedAt: timestamp
   };
-  const nextDraftMap = new Map(state.moderatorDrafts);
-  nextDraftMap.set(regionId, nextDraft);
+  let nextDraftMap = new Map(state.moderatorDrafts);
 
   try {
     setModeratorStatus("Choose the atlas project folder to store this PDF and update the project memory manifest.");
-    const archiveHandle = await getProjectArchiveDirectoryHandle();
+    const projectResult = await syncDraftToProjectArchive({
+      draft: nextDraft,
+      regionId,
+      sessionFile,
+      savePdfCopy: true,
+      promptForHandle: true,
+      reason: "archive-pdf"
+    });
 
-    if (!archiveHandle) {
+    if (!projectResult.saved) {
       setModeratorStatus("Project archiving is unavailable in this browser session.", true);
       return;
     }
 
-    const pdfHandle = await archiveHandle.getFileHandle(fileName, { create: true });
-    const writable = await pdfHandle.createWritable();
-    await writable.write(sessionFile);
-    await writable.close();
+    nextDraft = projectResult.draft;
+    nextDraftMap.set(regionId, nextDraft);
+    const archiveHandle = projectResult.archiveHandle;
     await writeProjectArchiveManifest(archiveHandle, nextDraftMap);
   } catch (error) {
     if (error?.name === "AbortError") {
@@ -1883,7 +2139,7 @@ async function archiveModeratorPdfToProject() {
   syncModeratorViews();
   populateModeratorForm(regionId);
   setModeratorStatus(
-    `Saved ${fileName} into ${MODERATOR_PROJECT_ARCHIVE_PATH} and updated ${MODERATOR_PROJECT_MANIFEST_FILE} for ${currentRegion?.name || regionId}.`
+    `Saved ${nextDraft.projectPdfName || sessionFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH} and updated ${MODERATOR_PROJECT_MANIFEST_FILE} for ${currentRegion?.name || regionId}.`
   );
 }
 
@@ -1923,6 +2179,11 @@ async function integrateModeratorPdfIntoAtlas() {
   const fallbackDraft = {
     atlasId: getActiveAtlasId(),
     regionId,
+    name: existingDraft?.name || currentRegion?.name || buildCustomPlateName(regionId),
+    uz: existingDraft?.uz || currentRegion?.uz || "",
+    type: existingDraft?.type || currentRegion?.type || DEFAULT_PLATE_TYPE,
+    scale: existingDraft?.scale || currentRegion?.scale || DEFAULT_PLATE_SCALE,
+    map: existingDraft?.map || currentRegion?.map || `assets/maps/${regionId}.jpg`,
     caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
     summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
     moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
@@ -1930,18 +2191,55 @@ async function integrateModeratorPdfIntoAtlas() {
     sourceFileSize: sessionFile
       ? formatBytes(sessionFile.size)
       : existingDraft?.sourceFileSize || currentRegion?.sourceFileSize || "",
-    atlasPreviewImage: existingDraft?.atlasPreviewImage || "",
+    projectPdfName: existingDraft?.projectPdfName || currentRegion?.projectPdfName || "",
+    projectPdfPath: existingDraft?.projectPdfPath || currentRegion?.projectPdfPath || "",
+    projectPdfSavedAt: existingDraft?.projectPdfSavedAt || currentRegion?.projectPdfSavedAt || "",
+    projectDraftPath: existingDraft?.projectDraftPath || currentRegion?.projectDraftPath || "",
+    projectDraftSavedAt: existingDraft?.projectDraftSavedAt || currentRegion?.projectDraftSavedAt || "",
+    atlasPreviewPath: existingDraft?.atlasPreviewPath || currentRegion?.atlasPreviewPath || "",
+    atlasPreviewSavedAt: existingDraft?.atlasPreviewSavedAt || currentRegion?.atlasPreviewSavedAt || "",
+    atlasPreviewImage: existingDraft?.atlasPreviewPath ? "" : existingDraft?.atlasPreviewImage || "",
     atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
     updatedAt: new Date().toLocaleString()
   };
-  const nextDraft = {
+  let nextDraft = {
     ...(createDraftFromForm() || fallbackDraft),
+    atlasPreviewPath: existingDraft?.atlasPreviewPath || fallbackDraft.atlasPreviewPath || "",
+    atlasPreviewSavedAt: existingDraft?.atlasPreviewSavedAt || fallbackDraft.atlasPreviewSavedAt || "",
     atlasPreviewImage,
     atlasPreviewPage: pageNumber,
     updatedAt: new Date().toLocaleString()
   };
 
+  let archiveHandle = null;
+
+  try {
+    const projectResult = await syncDraftToProjectArchive({
+      draft: nextDraft,
+      regionId,
+      sessionFile,
+      previewDataUrl: atlasPreviewImage,
+      previewPage: pageNumber,
+      savePdfCopy: Boolean(sessionFile && !nextDraft.projectPdfPath),
+      promptForHandle: true,
+      reason: "integrate-preview"
+    });
+
+    if (projectResult.saved) {
+      nextDraft = projectResult.draft;
+      archiveHandle = projectResult.archiveHandle;
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      archiveHandle = null;
+    }
+  }
+
   state.moderatorDrafts.set(regionId, nextDraft);
+
+  if (archiveHandle) {
+    await writeProjectArchiveManifest(archiveHandle, new Map(state.moderatorDrafts));
+  }
 
   try {
     persistDrafts();
@@ -1954,16 +2252,18 @@ async function integrateModeratorPdfIntoAtlas() {
 
     syncModeratorViews();
     populateModeratorForm(regionId);
-    setModeratorStatus("Could not save the integrated atlas preview in browser storage. The preview image may be too large for this browser profile.", true);
+    setModeratorStatus("Could not save the integrated atlas preview in project files or browser storage. Recheck folder access and try again.", true);
     return;
   }
 
   syncModeratorViews();
   populateModeratorForm(regionId);
   setModeratorStatus(
-    usedPreviewFallback
-      ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} using the visible preview size. Use Preview in atlas to inspect it.`
-      : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} with a higher-resolution PDF render. Use Preview in atlas to inspect it.`
+    archiveHandle
+      ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview to ${nextDraft.atlasPreviewPath}.`
+      : usedPreviewFallback
+        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} using the visible preview size. Use Preview in atlas to inspect it.`
+        : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} with a higher-resolution PDF render. Use Preview in atlas to inspect it.`
   );
 }
 
@@ -1980,7 +2280,52 @@ function deleteModeratorDraft(regionId) {
     populateModeratorForm(state.moderatorRegionId || REGIONS[0]?.id || "");
   }
 
-  setModeratorStatus(`Removed the saved draft for ${deletedRegionName}.`);
+  setModeratorStatus(`Removed the saved draft for ${deletedRegionName}. The base atlas plate remains available.`);
+}
+
+async function deleteModeratorPlate(regionId) {
+  const draft = getDraft(regionId);
+
+  if (!draft?.isCustomPlate) {
+    setModeratorStatus("Only draft-only custom plates can be deleted from the atlas.", true);
+    return;
+  }
+
+  const deletedRegionName = getEffectiveRegion(regionId)?.name || draft.name || regionId;
+  const wasSelected = state.moderatorRegionId === regionId;
+
+  try {
+    const projectResult = await syncDraftToProjectArchive({
+      draft: {
+        ...draft,
+        updatedAt: new Date().toLocaleString()
+      },
+      regionId,
+      sessionFile: state.moderatorSessionFiles.get(regionId),
+      promptForHandle: false,
+      reason: "delete-plate",
+      deleted: true
+    });
+
+    if (projectResult.saved) {
+      const nextDraftMap = new Map(state.moderatorDrafts);
+      nextDraftMap.delete(regionId);
+      await writeProjectArchiveManifest(projectResult.archiveHandle, nextDraftMap);
+    }
+  } catch {
+    // Keep deletion local even if archive history update fails.
+  }
+
+  state.moderatorDrafts.delete(regionId);
+  persistDrafts();
+  revokeModeratorPdf(regionId);
+  syncModeratorViews();
+
+  if (wasSelected) {
+    populateModeratorForm(state.moderatorRegionId || REGIONS[0]?.id || "");
+  }
+
+  setModeratorStatus(`Deleted plate ${deletedRegionName} from ${getActiveAtlasName()}. Archived history was preserved when project access was available.`);
 }
 
 function exportModeratorHandoff() {
@@ -2329,6 +2674,8 @@ function wireEvents() {
   elements.moderatorPdf.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     const regionId = elements.moderatorRegion.value;
+    const currentRegion = getEffectiveRegion(regionId);
+    const existingDraft = getDraft(regionId);
 
     revokeModeratorPdf(regionId);
 
@@ -2359,8 +2706,72 @@ function wireEvents() {
     updateModeratorPdfPreview(regionId);
     updateModeratorCommand(regionId);
 
+    let autoArchiveSaved = false;
+    let autoArchiveSkipped = false;
+
+    try {
+      const autoArchiveDraft = {
+        ...(createDraftFromForm() || {
+          atlasId: getActiveAtlasId(),
+          regionId,
+          name: existingDraft?.name || currentRegion?.name || buildCustomPlateName(regionId),
+          uz: existingDraft?.uz || currentRegion?.uz || "",
+          type: existingDraft?.type || currentRegion?.type || DEFAULT_PLATE_TYPE,
+          scale: existingDraft?.scale || currentRegion?.scale || DEFAULT_PLATE_SCALE,
+          map: existingDraft?.map || currentRegion?.map || `assets/maps/${regionId}.jpg`,
+          caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
+          summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
+          moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
+          sourcePdf: file.name,
+          sourceFileSize: formatBytes(file.size),
+          projectPdfName: elements.moderatorProjectPdfName.value.trim() || existingDraft?.projectPdfName || file.name,
+          projectPdfPath: existingDraft?.projectPdfPath || currentRegion?.projectPdfPath || "",
+          projectPdfSavedAt: existingDraft?.projectPdfSavedAt || currentRegion?.projectPdfSavedAt || "",
+          projectDraftPath: existingDraft?.projectDraftPath || currentRegion?.projectDraftPath || "",
+          projectDraftSavedAt: existingDraft?.projectDraftSavedAt || currentRegion?.projectDraftSavedAt || "",
+          atlasPreviewPath: existingDraft?.atlasPreviewPath || currentRegion?.atlasPreviewPath || "",
+          atlasPreviewSavedAt: existingDraft?.atlasPreviewSavedAt || currentRegion?.atlasPreviewSavedAt || "",
+          atlasPreviewImage: existingDraft?.atlasPreviewPath ? "" : existingDraft?.atlasPreviewImage || currentRegion?.atlasPreviewImage || "",
+          atlasPreviewPage: existingDraft?.atlasPreviewPage || currentRegion?.atlasPreviewPage || 0,
+          updatedAt: new Date().toLocaleString()
+        }),
+        sourcePdf: file.name,
+        sourceFileSize: formatBytes(file.size),
+        updatedAt: new Date().toLocaleString()
+      };
+      const projectResult = await syncDraftToProjectArchive({
+        draft: autoArchiveDraft,
+        regionId,
+        sessionFile: file,
+        savePdfCopy: true,
+        promptForHandle: true,
+        reason: "pdf-selected"
+      });
+
+      if (projectResult.saved) {
+        autoArchiveSaved = true;
+        state.moderatorDrafts.set(regionId, projectResult.draft);
+        await writeProjectArchiveManifest(projectResult.archiveHandle, new Map(state.moderatorDrafts));
+        persistDrafts();
+        syncModeratorViews();
+        populateModeratorForm(regionId);
+      } else {
+        autoArchiveSkipped = true;
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        state.projectArchiveRootHandle = null;
+      }
+    }
+
     if (pdfBytes) {
-      setModeratorStatus(`Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`);
+      setModeratorStatus(
+        autoArchiveSaved
+          ? `Attached ${file.name}, stored it in ${getDraft(regionId)?.projectPdfPath || MODERATOR_PROJECT_ARCHIVE_PATH}, and updated ${getDraft(regionId)?.projectDraftPath || "the draft record"}. The preview is rendering now.`
+          : autoArchiveSkipped
+            ? `Attached ${file.name}. The preview is rendering now, but project auto-save was skipped because no project folder is available yet.`
+            : `Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`
+      );
       return;
     }
 
@@ -2385,14 +2796,17 @@ function wireEvents() {
     renderModeratorPdfPage(regionId, currentPage + 1);
   });
 
-  elements.moderatorForm.addEventListener("submit", (event) => {
+  elements.moderatorForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    saveModeratorDraft();
+    await saveModeratorDraft();
   });
 
   elements.moderatorArchive.addEventListener("click", archiveModeratorPdfToProject);
   elements.moderatorIntegrate.addEventListener("click", integrateModeratorPdfIntoAtlas);
   elements.moderatorPreview.addEventListener("click", previewModeratorRegion);
+  elements.moderatorDeletePlate?.addEventListener("click", async () => {
+    await deleteModeratorPlate(elements.moderatorRegion.value);
+  });
   elements.moderatorReset.addEventListener("click", () => {
     deleteModeratorDraft(elements.moderatorRegion.value);
   });
@@ -2408,7 +2822,7 @@ function wireEvents() {
     elements.moderatorImport.value = "";
   });
 
-  elements.moderatorDraftList.addEventListener("click", (event) => {
+  elements.moderatorDraftList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-action][data-region-id]");
 
     if (!button) {
@@ -2430,6 +2844,11 @@ function wireEvents() {
     }
 
     if (action === "delete") {
+      if (getDraft(regionId)?.isCustomPlate) {
+        await deleteModeratorPlate(regionId);
+        return;
+      }
+
       deleteModeratorDraft(regionId);
     }
   });

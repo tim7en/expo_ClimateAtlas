@@ -106,10 +106,11 @@ The atlas now includes a moderator workspace for content handoff.
 2. Choose an existing plate or use **Add plate** to create a new draft-only plate directly in the editor.
 3. Attach the source PDF for that plate, write a caption, and update the long description.
 4. For a new plate, fill in the plate title, type, scale label, and target map path before saving.
-5. Optionally set **Project PDF name** and use **Archive PDF in project** to copy the uploaded file into `pdfs/moderator-library/` and update `pdfs/moderator-library/atlas-project-memory.json`.
-6. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
-7. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
-8. Export the handoff JSON and give it together with the original PDF files to your associate.
+5. When you choose a PDF in a Chromium browser over local HTTP, the atlas now automatically copies it into `pdfs/moderator-library/` using the current **Project PDF name**, writes a plate JSON record into `pdfs/moderator-library/draft-history/`, and updates `pdfs/moderator-library/atlas-project-memory.json`.
+6. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview. The preview is written into `pdfs/moderator-library/atlas-previews/` so it no longer depends on browser local storage size limits.
+7. Save the draft to refresh the current plate JSON record and manifest after text edits.
+8. Use **Delete plate** to remove a draft-only custom plate from the active atlas while keeping its archived project history when project access was available.
+9. Export the handoff JSON and give it together with the original PDF files to your associate.
 
 The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
 
@@ -117,11 +118,12 @@ The integrated atlas plate is a moderator-side raster preview captured from the 
 
 Persistence details:
 
-1. Saved moderator drafts are stored in the browser under local storage key `atlasModeratorDraftsV1` until that browser storage is cleared.
-2. Those local drafts are machine- and browser-profile-specific; they do not automatically travel with the HTML file.
-3. For anything you do not want to lose, export the handoff JSON and/or apply it into `js/moderator-drafts.js` with the importer script.
-4. If you use **Archive PDF in project**, the atlas asks for write access to the project folder and stores a repo-safe copy in `pdfs/moderator-library/` together with a manifest file that tracks the region, PDF path, and current draft text.
-5. Project archiving uses the browser File System Access API, so it works best in a Chromium browser opened over local HTTP such as `http://127.0.0.1:8010/`.
+1. Saved moderator drafts are still cached in the browser under local storage key `atlasModeratorDraftsV2`, but large integrated previews are now written to project files instead of being kept only in browser storage.
+2. Those browser-local drafts are still machine- and browser-profile-specific; use the project archive or exported handoff JSON for anything you do not want to lose.
+3. Every archived plate now gets a current JSON description file at `pdfs/moderator-library/draft-history/<atlasId>/<plateId>/latest.json` plus timestamped history snapshots in the same folder.
+4. Integrated atlas previews are written to `pdfs/moderator-library/atlas-previews/`, which avoids the previous browser storage quota error for large preview images.
+5. `pdfs/moderator-library/atlas-project-memory.json` now tracks the current project PDF path, current draft record path, and current archived preview path for each draft.
+6. Project archiving uses the browser File System Access API, so it works best in a Chromium browser opened over local HTTP such as `http://127.0.0.1:8010/`.
 
 To integrate a handoff back into the source project:
 

@@ -23,11 +23,11 @@ CSS_URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 QUOTED_ASSET_PATTERN = re.compile(
-    r'(?P<quote>["\'])(?P<path>(?:\.?\.?/)?assets/[^"\']+\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf))(?P=quote)',
+    r'(?P<quote>["\'])(?P<path>(?:\.?\.?/)?(?:assets|pdfs/moderator-library)/[^"\']+\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf))(?P=quote)',
     re.IGNORECASE,
 )
 HTML_ASSET_PATTERN = re.compile(
-    r'(?P<attr>\b(?:src|href)=)(?P<quote>["\'])(?P<path>(?:\.?\.?/)?assets/[^"\']+)(?P=quote)',
+    r'(?P<attr>\b(?:src|href)=)(?P<quote>["\'])(?P<path>(?:\.?\.?/)?(?:assets|pdfs/moderator-library)/[^"\']+)(?P=quote)',
     re.IGNORECASE,
 )
 

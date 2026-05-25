@@ -1382,6 +1382,16 @@ textarea:focus-visible,
   background: rgba(199, 163, 82, 0.16);
 }
 
+.draft-action-danger {
+  border-color: rgba(205, 96, 72, 0.32);
+  color: #f1c1b4;
+}
+
+.draft-action-danger:hover {
+  border-color: #e07e66;
+  background: rgba(176, 70, 44, 0.22);
+}
+
 .draft-action--label {
   cursor: pointer;
 }
