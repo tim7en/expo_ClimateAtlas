@@ -23,7 +23,7 @@ const MODERATOR_PROJECT_HISTORY_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODE
 const DEFAULT_PLATE_TYPE = "Atlas plate";
 const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
-const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas project root or its pdfs folder so moderator files are saved inside this repo.";
+const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas project root so moderator files are saved inside this repo.";
 
 function buildIndex(regions) {
   return new Map((regions || []).map((region, index) => [region.id, index]));
@@ -288,6 +288,8 @@ const elements = {
   moderatorPlateMap: document.querySelector("#moderator-plate-map"),
   moderatorPdf: document.querySelector("#moderator-pdf"),
   moderatorProjectPdfName: document.querySelector("#moderator-project-pdf-name"),
+  moderatorProjectRoot: document.querySelector("#moderator-project-root"),
+  moderatorProjectRootMeta: document.querySelector("#moderator-project-root-meta"),
   moderatorFileMeta: document.querySelector("#moderator-file-meta"),
   moderatorPreviewHint: document.querySelector("#moderator-preview-hint"),
   moderatorCaption: document.querySelector("#moderator-caption"),
@@ -646,12 +648,6 @@ async function isValidProjectArchiveRootHandle(handle) {
     return false;
   }
 
-  const handleName = String(handle.name || "").trim().toLowerCase();
-
-  if (handleName === PROJECT_PDFS_FOLDER) {
-    return true;
-  }
-
   return (await directoryHandleContainsFile(handle, "index.html")) || (await directoryHandleContainsFile(handle, "package.json"));
 }
 
@@ -679,11 +675,7 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
   }
 
   const rootHandle = state.projectArchiveRootHandle;
-  const rootName = String(rootHandle?.name || "").trim().toLowerCase();
-
-  const pdfsHandle = rootName === PROJECT_PDFS_FOLDER
-    ? rootHandle
-    : await rootHandle.getDirectoryHandle(PROJECT_PDFS_FOLDER, { create: true });
+  const pdfsHandle = await rootHandle.getDirectoryHandle(PROJECT_PDFS_FOLDER, { create: true });
 
   return pdfsHandle.getDirectoryHandle(MODERATOR_PROJECT_ARCHIVE_FOLDER, { create: true });
 }
@@ -721,6 +713,68 @@ async function writeArchiveBlobFile(directoryHandle, fileName, blob) {
 async function dataUrlToBlob(dataUrl) {
   const response = await fetch(dataUrl);
   return response.blob();
+}
+
+function getFileNameFromPath(path, fallback = "") {
+  const normalizedPath = String(path || "").trim().split("?")[0].split("#")[0];
+  const pathSegments = normalizedPath.split("/").filter(Boolean);
+  return pathSegments[pathSegments.length - 1] || fallback;
+}
+
+function getResolvedProjectPdfFileName(regionId, sources = []) {
+  const preferredValue = [
+    elements.moderatorProjectPdfName?.value,
+    ...sources.map((source) => source?.projectPdfName),
+    ...sources.map((source) => getFileNameFromPath(source?.projectPdfPath || "")),
+    ...sources.map((source) => source?.sourcePdf)
+  ].find((value) => String(value || "").trim());
+
+  return buildProjectPdfFileName(preferredValue || regionId, regionId);
+}
+
+async function resolveModeratorProjectPdfFile(regionId, sources = []) {
+  const sessionFile = state.moderatorSessionFiles.get(regionId);
+
+  if (sessionFile) {
+    return sessionFile;
+  }
+
+  const fileName = getResolvedProjectPdfFileName(regionId, sources);
+  const pdfBytes = state.moderatorPdfBytes.get(regionId);
+
+  if (pdfBytes?.length) {
+    return new File([pdfBytes.slice()], fileName, { type: "application/pdf" });
+  }
+
+  const candidatePaths = Array.from(new Set(
+    sources
+      .map((source) => String(source?.projectPdfPath || "").trim())
+      .filter(Boolean)
+  ));
+
+  for (const candidatePath of candidatePaths) {
+    try {
+      const response = await fetch(candidatePath, { cache: "no-store" });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const blob = await response.blob();
+
+      if (!blob.size) {
+        continue;
+      }
+
+      return new File([blob], getFileNameFromPath(candidatePath, fileName), {
+        type: blob.type || "application/pdf"
+      });
+    } catch {
+      // Try the next known path.
+    }
+  }
+
+  return null;
 }
 
 async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "draft-save", options = {}) {
@@ -1010,7 +1064,6 @@ function switchAtlas(atlasId) {
   state.atlasId = nextAtlas.id;
   state.index = 0;
   state.query = "";
-  state.projectArchiveRootHandle = null;
 
   if (elements.contentsSearch) {
     elements.contentsSearch.value = "";
@@ -1063,6 +1116,61 @@ function syncFullscreenLabel() {
 function setModeratorStatus(message, isAlert = false) {
   elements.moderatorStatus.textContent = message;
   elements.moderatorStatus.classList.toggle("is-alert", Boolean(isAlert));
+}
+
+function getModeratorProjectPackageTarget(regionId = state.moderatorRegionId || elements.moderatorRegion?.value || REGIONS[0]?.id || "plate") {
+  return `${buildProjectPlatePackagePath(regionId, getActiveAtlasId())}/`;
+}
+
+function updateModeratorProjectRootMeta(regionId = state.moderatorRegionId || elements.moderatorRegion?.value || REGIONS[0]?.id || "") {
+  if (!elements.moderatorProjectRootMeta) {
+    return;
+  }
+
+  const packageTarget = getModeratorProjectPackageTarget(regionId);
+
+  if (elements.moderatorProjectRoot) {
+    elements.moderatorProjectRoot.textContent = state.projectArchiveRootHandle
+      ? "Change project root"
+      : "Connect project root";
+  }
+
+  elements.moderatorProjectRootMeta.textContent = state.projectArchiveRootHandle
+    ? `Connected project root: ${state.projectArchiveRootHandle.name}. Plate packages will be written under ${packageTarget}`
+    : `No project root connected yet. Connect the atlas repo root to save plate packages under ${packageTarget}`;
+}
+
+async function connectModeratorProjectRoot() {
+  if (typeof window.showDirectoryPicker !== "function") {
+    setModeratorStatus(
+      "Project archiving needs a Chromium browser over local HTTP so the atlas can ask for write access to the project folder.",
+      true
+    );
+    return;
+  }
+
+  try {
+    const pickedHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+
+    if (!(await isValidProjectArchiveRootHandle(pickedHandle))) {
+      throw createProjectArchiveRootError();
+    }
+
+    state.projectArchiveRootHandle = pickedHandle;
+    updateModeratorProjectRootMeta(elements.moderatorRegion.value);
+    setModeratorStatus(
+      `Connected project root ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.`
+    );
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      setModeratorStatus("Project root selection was cancelled.", true);
+      return;
+    }
+
+    state.projectArchiveRootHandle = null;
+    updateModeratorProjectRootMeta(elements.moderatorRegion.value);
+    setModeratorStatus(error?.message || PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE, true);
+  }
 }
 
 function resetView() {
@@ -1972,6 +2080,7 @@ function populateModeratorForm(regionId) {
     elements.moderatorFileMeta.textContent = "No PDF selected yet. Attach one to preview it during this session and to record its filename in the handoff package.";
   }
 
+  updateModeratorProjectRootMeta(nextRegionId);
   updateModeratorPdfPreview(nextRegionId);
   updateModeratorCommand(nextRegionId);
 }
@@ -2060,6 +2169,8 @@ function syncModeratorViews() {
   if (state.moderatorRegionId) {
     updateModeratorCommand(state.moderatorRegionId);
   }
+
+  updateModeratorProjectRootMeta(state.moderatorRegionId);
 }
 
 function createDraftFromForm() {
@@ -2127,7 +2238,7 @@ function createDraftFromForm() {
 async function saveModeratorDraft() {
   const draft = createDraftFromForm();
   const regionId = elements.moderatorRegion.value;
-  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const currentRegion = getEffectiveRegion(regionId);
 
   if (!draft) {
     state.moderatorDrafts.delete(regionId);
@@ -2141,13 +2252,14 @@ async function saveModeratorDraft() {
   let nextDraft = draft;
   let archiveHandle = null;
   let archiveErrorMessage = "";
+  const projectPdfFile = await resolveModeratorProjectPdfFile(regionId, [nextDraft, getDraft(regionId), currentRegion]);
 
   try {
     const projectResult = await syncDraftToProjectArchive({
       draft: nextDraft,
       regionId,
-      sessionFile,
-      savePdfCopy: Boolean(sessionFile),
+      sessionFile: projectPdfFile,
+      savePdfCopy: Boolean(projectPdfFile),
       promptForHandle: false,
       reason: "draft-save"
     });
@@ -2159,6 +2271,7 @@ async function saveModeratorDraft() {
   } catch (error) {
     if (error?.name === "ProjectArchiveRootError") {
       archiveErrorMessage = error.message;
+      updateModeratorProjectRootMeta(regionId);
     }
 
     archiveHandle = null;
@@ -2186,10 +2299,10 @@ async function archiveModeratorPdfToProject() {
   const regionId = elements.moderatorRegion.value;
   const currentRegion = getEffectiveRegion(regionId);
   const existingDraft = getDraft(regionId);
-  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const projectPdfFile = await resolveModeratorProjectPdfFile(regionId, [existingDraft, currentRegion]);
 
-  if (!sessionFile) {
-    setModeratorStatus("Attach a PDF for this region first, then archive it into the project folder.", true);
+  if (!projectPdfFile) {
+    setModeratorStatus("Attach the source PDF again, or keep an existing project copy available, before archiving this plate package into the project folder.", true);
     return;
   }
 
@@ -2214,8 +2327,8 @@ async function archiveModeratorPdfToProject() {
       caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
       summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
       moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
-      sourcePdf: sessionFile.name,
-      sourceFileSize: formatBytes(sessionFile.size),
+      sourcePdf: projectPdfFile.name,
+      sourceFileSize: formatBytes(projectPdfFile.size),
       projectDraftPath: existingDraft?.projectDraftPath || "",
       projectDraftSavedAt: existingDraft?.projectDraftSavedAt || "",
       atlasPreviewPath: existingDraft?.atlasPreviewPath || "",
@@ -2224,25 +2337,26 @@ async function archiveModeratorPdfToProject() {
       atlasPreviewPage: existingDraft?.atlasPreviewPage || 0,
       updatedAt: timestamp
     }),
-    sourcePdf: sessionFile.name,
-    sourceFileSize: formatBytes(sessionFile.size),
+    sourcePdf: projectPdfFile.name,
+    sourceFileSize: formatBytes(projectPdfFile.size),
     updatedAt: timestamp
   };
   let nextDraftMap = new Map(state.moderatorDrafts);
 
   try {
-    setModeratorStatus("Choose the atlas project folder to store this PDF and update the project memory manifest.");
+    setModeratorStatus("Archiving this plate package into the connected project root.");
     const projectResult = await syncDraftToProjectArchive({
       draft: nextDraft,
       regionId,
-      sessionFile,
+      sessionFile: projectPdfFile,
       savePdfCopy: true,
-      promptForHandle: true,
+      promptForHandle: false,
       reason: "archive-pdf"
     });
 
     if (!projectResult.saved) {
-      setModeratorStatus("Project archiving is unavailable in this browser session.", true);
+      updateModeratorProjectRootMeta(regionId);
+      setModeratorStatus("Connect the atlas project root first, then archive this plate package into the repo.", true);
       return;
     }
 
@@ -2258,13 +2372,15 @@ async function archiveModeratorPdfToProject() {
 
     if (error?.name === "ProjectArchiveRootError") {
       state.projectArchiveRootHandle = null;
+      updateModeratorProjectRootMeta(regionId);
       setModeratorStatus(error.message, true);
       return;
     }
 
     state.projectArchiveRootHandle = null;
+    updateModeratorProjectRootMeta(regionId);
     setModeratorStatus(
-      `Could not archive ${sessionFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH}. Recheck folder permissions and try again.`,
+      `Could not archive ${projectPdfFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH}. Recheck folder permissions and try again.`,
       true
     );
     return;
@@ -2275,7 +2391,7 @@ async function archiveModeratorPdfToProject() {
   syncModeratorViews();
   populateModeratorForm(regionId);
   setModeratorStatus(
-    `Saved ${nextDraft.projectPdfName || sessionFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH} and updated ${MODERATOR_PROJECT_MANIFEST_FILE} for ${currentRegion?.name || regionId}.`
+    `Saved ${nextDraft.projectPdfName || projectPdfFile.name} into ${MODERATOR_PROJECT_ARCHIVE_PATH} and updated ${MODERATOR_PROJECT_MANIFEST_FILE} for ${currentRegion?.name || regionId}.`
   );
 }
 
@@ -2283,7 +2399,7 @@ async function integrateModeratorPdfIntoAtlas() {
   const regionId = elements.moderatorRegion.value;
   const currentRegion = getEffectiveRegion(regionId);
   const existingDraft = getDraft(regionId);
-  const sessionFile = state.moderatorSessionFiles.get(regionId);
+  const projectPdfFile = await resolveModeratorProjectPdfFile(regionId, [existingDraft, currentRegion]);
   const canvas = elements.moderatorPdfCanvas;
   const pageNumber = state.moderatorPdfPageByRegion.get(regionId) || existingDraft?.atlasPreviewPage || 1;
 
@@ -2323,9 +2439,9 @@ async function integrateModeratorPdfIntoAtlas() {
     caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
     summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
     moderatorNote: elements.moderatorNote.value.trim() || existingDraft?.moderatorNote || "",
-    sourcePdf: sessionFile?.name || existingDraft?.sourcePdf || currentRegion?.sourcePdf || "",
-    sourceFileSize: sessionFile
-      ? formatBytes(sessionFile.size)
+    sourcePdf: projectPdfFile?.name || existingDraft?.sourcePdf || currentRegion?.sourcePdf || "",
+    sourceFileSize: projectPdfFile
+      ? formatBytes(projectPdfFile.size)
       : existingDraft?.sourceFileSize || currentRegion?.sourceFileSize || "",
     projectPdfName: existingDraft?.projectPdfName || currentRegion?.projectPdfName || "",
     projectPdfPath: existingDraft?.projectPdfPath || currentRegion?.projectPdfPath || "",
@@ -2354,11 +2470,11 @@ async function integrateModeratorPdfIntoAtlas() {
     const projectResult = await syncDraftToProjectArchive({
       draft: nextDraft,
       regionId,
-      sessionFile,
+      sessionFile: projectPdfFile,
       previewDataUrl: atlasPreviewImage,
       previewPage: pageNumber,
-      savePdfCopy: Boolean(sessionFile),
-      promptForHandle: true,
+      savePdfCopy: Boolean(projectPdfFile),
+      promptForHandle: false,
       reason: "integrate-preview"
     });
 
@@ -2369,6 +2485,7 @@ async function integrateModeratorPdfIntoAtlas() {
   } catch (error) {
     if (error?.name === "ProjectArchiveRootError") {
       archiveErrorMessage = error.message;
+      updateModeratorProjectRootMeta(regionId);
     }
 
     if (error?.name === "AbortError") {
@@ -2412,9 +2529,13 @@ async function integrateModeratorPdfIntoAtlas() {
   populateModeratorForm(regionId);
   setModeratorStatus(
     archiveHandle
-      ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview to ${nextDraft.atlasPreviewPath}.`
+      ? projectPdfFile
+        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the plate package in ${nextDraft.projectDraftPath}.`
+        : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} and saved the preview and latest.json in ${nextDraft.projectDraftPath}. Re-attach the source PDF if you want it copied into the same folder too.`
       : archiveErrorMessage
         ? `${archiveErrorMessage} The plate preview was only kept in browser storage for the current profile.`
+      : !state.projectArchiveRootHandle
+        ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId}. Connect the atlas project root to also save the PDF, JPG, and latest.json into the repo.`
       : usedPreviewFallback
         ? `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} using the visible preview size. Use Preview in atlas to inspect it.`
         : `Integrated page ${pageNumber} of ${nextDraft.sourcePdf || "the PDF"} into the atlas for ${currentRegion?.name || regionId} with a higher-resolution PDF render. Use Preview in atlas to inspect it.`
@@ -2817,6 +2938,10 @@ function wireEvents() {
     setModeratorStatus("");
   });
 
+  elements.moderatorProjectRoot?.addEventListener("click", async () => {
+    await connectModeratorProjectRoot();
+  });
+
   [elements.moderatorProjectPdfName, elements.moderatorPlateMap].forEach((input) => {
     input?.addEventListener("input", () => {
       if (elements.moderatorRegion.value) {
@@ -2899,7 +3024,7 @@ function wireEvents() {
         regionId,
         sessionFile: file,
         savePdfCopy: true,
-        promptForHandle: true,
+        promptForHandle: false,
         reason: "pdf-selected"
       });
 
@@ -2916,10 +3041,12 @@ function wireEvents() {
     } catch (error) {
       if (error?.name === "ProjectArchiveRootError") {
         autoArchiveErrorMessage = error.message;
+        updateModeratorProjectRootMeta(regionId);
       }
 
       if (error?.name !== "AbortError") {
         state.projectArchiveRootHandle = null;
+        updateModeratorProjectRootMeta(regionId);
       }
     }
 
@@ -2930,7 +3057,7 @@ function wireEvents() {
           : autoArchiveErrorMessage
             ? `${autoArchiveErrorMessage} ${file.name} is attached for this session, but it is not yet archived into the repo.`
           : autoArchiveSkipped
-            ? `Attached ${file.name}. The preview is rendering now, but project auto-save was skipped because no project folder is available yet.`
+            ? `Attached ${file.name}. The preview is rendering now; use Connect project root to archive the plate package into this repo.`
             : `Attached ${file.name}. The preview is rendering now; save the draft to record it in the handoff package.`
       );
       return;

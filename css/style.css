@@ -1281,6 +1281,16 @@ textarea:focus-visible,
   min-height: 48px;
 }
 
+.moderator-project-root-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.moderator-project-root-meta {
+  margin-top: -4px;
+}
+
 .moderator-plate-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
