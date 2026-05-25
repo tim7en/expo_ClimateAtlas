@@ -1266,6 +1266,36 @@ textarea:focus-visible,
   margin-top: 16px;
 }
 
+.moderator-select-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.moderator-select-row .moderator-field {
+  flex: 1 1 260px;
+}
+
+.moderator-add-plate {
+  min-height: 48px;
+}
+
+.moderator-plate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.moderator-plate-key {
+  margin-top: -4px;
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 235, 217, 0.6);
+}
+
 .moderator-field {
   display: grid;
   gap: 8px;
@@ -1872,6 +1902,10 @@ textarea:focus-visible,
 
   .moderator-pdf-toolbar {
     align-items: stretch;
+  }
+
+  .moderator-plate-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -310,9 +310,76 @@
                 </div>
 
                 <form id="moderator-form" class="moderator-form">
-                  <label class="moderator-field" for="moderator-region">
-                    <span>Region</span>
-                    <select id="moderator-region" name="moderator-region"></select>
+                  <div class="moderator-select-row">
+                    <label class="moderator-field" for="moderator-region">
+                      <span>Plate</span>
+                      <select id="moderator-region" name="moderator-region"></select>
+                    </label>
+
+                    <button class="draft-action moderator-add-plate" id="moderator-add-plate" type="button">
+                      Add plate
+                    </button>
+                  </div>
+
+                  <p class="moderator-help moderator-plate-key" id="moderator-plate-key">
+                    Plate key
+                  </p>
+
+                  <label class="moderator-field" for="moderator-plate-name">
+                    <span>Plate title</span>
+                    <input
+                      id="moderator-plate-name"
+                      name="moderator-plate-name"
+                      type="text"
+                      maxlength="120"
+                      placeholder="Plate title shown in the atlas"
+                    />
+                  </label>
+
+                  <label class="moderator-field" for="moderator-plate-uz">
+                    <span>Secondary title</span>
+                    <input
+                      id="moderator-plate-uz"
+                      name="moderator-plate-uz"
+                      type="text"
+                      maxlength="120"
+                      placeholder="Optional local or secondary label"
+                    />
+                  </label>
+
+                  <div class="moderator-plate-grid">
+                    <label class="moderator-field" for="moderator-plate-type">
+                      <span>Plate type</span>
+                      <input
+                        id="moderator-plate-type"
+                        name="moderator-plate-type"
+                        type="text"
+                        maxlength="120"
+                        placeholder="Climate and water plate"
+                      />
+                    </label>
+
+                    <label class="moderator-field" for="moderator-plate-scale">
+                      <span>Scale label</span>
+                      <input
+                        id="moderator-plate-scale"
+                        name="moderator-plate-scale"
+                        type="text"
+                        maxlength="80"
+                        placeholder="1 : 250 000"
+                      />
+                    </label>
+                  </div>
+
+                  <label class="moderator-field" for="moderator-plate-map">
+                    <span>Map target path</span>
+                    <input
+                      id="moderator-plate-map"
+                      name="moderator-plate-map"
+                      type="text"
+                      maxlength="180"
+                      placeholder="assets/maps/new-plate.jpg"
+                    />
                   </label>
 
                   <label class="moderator-field" for="moderator-pdf">

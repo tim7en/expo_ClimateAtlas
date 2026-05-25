@@ -103,12 +103,13 @@ Core controls:
 The atlas now includes a moderator workspace for content handoff.
 
 1. Open **Moderator** from the top bar.
-2. Choose a region.
-3. Attach the source PDF for that region, write a caption, and update the long description.
-4. Optionally set **Project PDF name** and use **Archive PDF in project** to copy the uploaded file into `pdfs/moderator-library/` and update `pdfs/moderator-library/atlas-project-memory.json`.
-5. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
-6. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
-7. Export the handoff JSON and give it together with the original PDF files to your associate.
+2. Choose an existing plate or use **Add plate** to create a new draft-only plate directly in the editor.
+3. Attach the source PDF for that plate, write a caption, and update the long description.
+4. For a new plate, fill in the plate title, type, scale label, and target map path before saving.
+5. Optionally set **Project PDF name** and use **Archive PDF in project** to copy the uploaded file into `pdfs/moderator-library/` and update `pdfs/moderator-library/atlas-project-memory.json`.
+6. Use **Integrate into atlas** to save the currently rendered PDF page as a moderator atlas plate preview.
+7. Save the draft. The atlas preview immediately uses the saved text, and the draft is kept in local browser storage.
+8. Export the handoff JSON and give it together with the original PDF files to your associate.
 
 The moderator workspace can now be entered directly from the cover scene with **Open moderator**, which is useful when the atlas is being used as an editing tool rather than a public kiosk.
 

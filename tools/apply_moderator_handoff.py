@@ -31,9 +31,23 @@ def normalize_draft(raw_draft: object) -> dict[str, object] | None:
 
     atlas_preview_page = atlas_preview_page if atlas_preview_page > 0 else 0
 
+    try:
+        custom_order = int(raw_draft.get("customOrder") or 0)
+    except (TypeError, ValueError):
+        custom_order = 0
+
+    custom_order = custom_order if custom_order > 0 else 0
+
     normalized = {
         "atlasId": atlas_id,
         "regionId": region_id,
+        "isCustomPlate": bool(raw_draft.get("isCustomPlate")),
+        "name": str(raw_draft.get("name") or raw_draft.get("title") or "").strip(),
+        "uz": str(raw_draft.get("uz") or raw_draft.get("localName") or "").strip(),
+        "type": str(raw_draft.get("type") or "").strip(),
+        "scale": str(raw_draft.get("scale") or "").strip(),
+        "map": str(raw_draft.get("map") or raw_draft.get("mapPath") or "").strip(),
+        "customOrder": custom_order,
         "caption": str(raw_draft.get("caption") or "").strip(),
         "summary": str(raw_draft.get("summary") or "").strip(),
         "moderatorNote": str(raw_draft.get("moderatorNote") or raw_draft.get("note") or "").strip(),
