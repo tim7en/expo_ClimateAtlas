@@ -504,3 +504,20 @@ window.REGIONS = [
     ]
   }
 ];
+
+// Add future atlas collections here. The app will surface each entry in the atlas selector.
+window.ATLASES = [
+  {
+    id: "climate-water",
+    name: "Climate and Water",
+    overview: {
+      riverCount: window.ATLAS_OVERVIEW.riverCount,
+      seaCount: window.ATLAS_OVERVIEW.seaCount,
+      plateLabel: "Plates",
+      riverLabel: "Great Rivers",
+      seaLabel: "Vanishing Sea"
+    },
+    glossary: window.ATLAS_GLOSSARY,
+    regions: window.REGIONS
+  }
+];

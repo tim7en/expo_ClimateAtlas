@@ -31,6 +31,11 @@
           </div>
         </div>
 
+        <label class="atlas-switcher" for="atlas-select">
+          <span>Atlas Set</span>
+          <select id="atlas-select" name="atlas-select"></select>
+        </label>
+
         <div class="sp"></div>
 
         <button class="tbtn" id="btnContents" type="button">
@@ -79,17 +84,21 @@
             <div class="meta" aria-label="Atlas overview">
               <div>
                 <div class="n" id="metric-plates">14</div>
-                <div class="l">Plates</div>
+                <div class="l" id="metric-plates-label">Plates</div>
               </div>
               <div>
                 <div class="n" id="metric-rivers">2</div>
-                <div class="l">Great Rivers</div>
+                <div class="l" id="metric-rivers-label">Great Rivers</div>
               </div>
               <div>
                 <div class="n" id="metric-sea">1</div>
-                <div class="l">Vanishing Sea</div>
+                <div class="l" id="metric-sea-label">Vanishing Sea</div>
               </div>
             </div>
+
+            <p class="atlas-current">
+              Current atlas set: <strong id="atlas-current-name">Climate and Water</strong>
+            </p>
 
             <div class="cover-actions">
               <button class="begin" id="btnBegin" type="button">
@@ -228,7 +237,7 @@
 
             <div class="counter">
               <div class="c-r" id="cName">Region</div>
-              <div class="c-n"><span id="cIdx">01</span> / 14 · Plate</div>
+              <div class="c-n"><span id="cIdx">01</span> / <span id="cTotal">14</span> · Plate</div>
             </div>
 
             <button class="navbtn" id="next" type="button">
@@ -250,7 +259,7 @@
           </button>
 
           <h2>Atlas Contents</h2>
-          <div class="csub">Search the fourteen climate and water plates</div>
+          <div class="csub" id="contents-subtitle">Search plates in the selected atlas</div>
 
           <div class="contents-tools">
             <label class="search-field" for="contents-search">

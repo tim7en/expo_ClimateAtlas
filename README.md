@@ -32,6 +32,55 @@ uzbekistan-atlas/
 
 Note: moderator PDF preview is not reliable when the atlas is opened directly from `file://` inside embedded browsers. Use Live Server or run `python -m http.server 8010` from the repo root and open `http://127.0.0.1:8010/` in a normal browser when you need to inspect uploaded PDFs.
 
+## Adding another atlas type
+
+The app can now switch between atlas collections from the header selector. Define those collections in `js/regions.js` through `window.ATLASES`.
+
+Each atlas entry should include:
+
+1. `id`: stable slug used for the selector and moderator handoff files.
+2. `name`: label shown in the UI.
+3. `overview`: optional cover metrics such as `riverCount`, `seaCount`, and custom labels.
+4. `glossary`: glossary rows for that atlas.
+5. `regions`: an array of plate objects using the same shape as the current `window.REGIONS` entries.
+
+Example:
+
+```js
+window.ATLASES = [
+	window.ATLASES[0],
+	{
+		id: "soils-land-use",
+		name: "Soils and Land Use",
+		overview: {
+			plateLabel: "Plates",
+			riverLabel: "Key Basins",
+			seaLabel: "Reference Waters"
+		},
+		glossary: [
+			{ term: "allyuvial", definition: "river-deposited sediment" }
+		],
+		regions: [
+			{
+				id: "soil-example",
+				name: "Sample Plate",
+				uz: "Namuna plastinka",
+				type: "Soils and land use plate",
+				scale: "1 : 500 000",
+				caption: "Short contents caption.",
+				map: "assets/maps/sample-plate.jpg",
+				palette: ["#8c5a33", "#466f5d", "#d3ba73"],
+				summary: "Long-form notes for the drawer.",
+				themes: ["Soils", "Land use"],
+				facts: []
+			}
+		]
+	}
+];
+```
+
+Moderator drafts, browser storage, and exported handoff JSON now keep an `atlasId`, so switch to the target atlas before importing or editing its drafts.
+
 ## Atlas experience
 
 The current scaffold now ships as a scene-based album UI:

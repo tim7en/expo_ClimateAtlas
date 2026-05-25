@@ -19,6 +19,7 @@ def normalize_draft(raw_draft: object) -> dict[str, object] | None:
     if not isinstance(raw_draft, dict):
         return None
 
+    atlas_id = str(raw_draft.get("atlasId") or "").strip()
     region_id = str(raw_draft.get("regionId") or raw_draft.get("id") or "").strip()
     if not region_id:
         return None
@@ -31,6 +32,7 @@ def normalize_draft(raw_draft: object) -> dict[str, object] | None:
     atlas_preview_page = atlas_preview_page if atlas_preview_page > 0 else 0
 
     normalized = {
+        "atlasId": atlas_id,
         "regionId": region_id,
         "caption": str(raw_draft.get("caption") or "").strip(),
         "summary": str(raw_draft.get("summary") or "").strip(),

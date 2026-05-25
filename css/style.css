@@ -148,6 +148,34 @@ textarea:focus-visible,
   flex: 1;
 }
 
+.atlas-switcher {
+  display: grid;
+  gap: 6px;
+  min-width: min(100%, 230px);
+}
+
+.atlas-switcher span,
+.atlas-current {
+  font-family: var(--ui);
+  text-transform: uppercase;
+}
+
+.atlas-switcher span {
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.atlas-switcher select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(244, 235, 217, 0.18);
+  border-radius: 3px;
+  background: rgba(244, 235, 217, 0.06);
+  color: var(--paper);
+}
+
 .tbtn,
 .navbtn,
 .notes-btn,
@@ -318,13 +346,28 @@ textarea:focus-visible,
   animation: rise 0.9s 0.68s both;
 }
 
+.atlas-current {
+  margin-top: 20px;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  opacity: 0;
+  animation: rise 0.9s 0.82s both;
+}
+
+.atlas-current strong {
+  color: var(--paper);
+  font-weight: 700;
+}
+
 .cv .meta {
   display: flex;
   justify-content: center;
   gap: 30px;
   margin-top: 30px;
   opacity: 0;
-  animation: rise 0.9s 0.82s both;
+  animation: rise 0.9s 0.76s both;
 }
 
 .cv .meta div {
@@ -1743,8 +1786,18 @@ textarea:focus-visible,
 
 @media (max-width: 720px) {
   .topbar {
+    flex-wrap: wrap;
     gap: 10px;
     padding: 11px 14px;
+  }
+
+  .sp {
+    display: none;
+  }
+
+  .atlas-switcher {
+    order: 4;
+    min-width: 100%;
   }
 
   .brand-tx .t {
@@ -1827,6 +1880,8 @@ textarea:focus-visible,
     padding: 28px 22px;
   }
 
+  .atlas-switcher,
+  .atlas-switcher select,
   .search-field,
   .search-field input,
   .result-pill {

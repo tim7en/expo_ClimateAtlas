@@ -1,11 +1,8 @@
-const REGIONS = Array.isArray(window.REGIONS) ? window.REGIONS : [];
-const ATLAS_GLOSSARY = Array.isArray(window.ATLAS_GLOSSARY) ? window.ATLAS_GLOSSARY : [];
-const ATLAS_OVERVIEW = window.ATLAS_OVERVIEW || {};
 const ATLAS_CONFIG = window.ATLAS_CONFIG || {};
 const MODERATOR_DRAFTS = Array.isArray(window.MODERATOR_DRAFTS) ? window.MODERATOR_DRAFTS : [];
 const PDFJS_LIB = window.pdfjsLib || null;
-const INDEX_BY_ID = new Map(REGIONS.map((region, index) => [region.id, index]));
-const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
+const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV2";
+const LEGACY_MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
 const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator !== false;
 const USE_BROWSER_DRAFTS = ATLAS_CONFIG.useBrowserDrafts !== false;
 const MODERATOR_PDF_PREVIEW_MAX_SCALE = 2.25;
@@ -16,6 +13,91 @@ const PROJECT_PDFS_FOLDER = "pdfs";
 const MODERATOR_PROJECT_ARCHIVE_FOLDER = "moderator-library";
 const MODERATOR_PROJECT_ARCHIVE_PATH = `${PROJECT_PDFS_FOLDER}/${MODERATOR_PROJECT_ARCHIVE_FOLDER}`;
 const MODERATOR_PROJECT_MANIFEST_FILE = "atlas-project-memory.json";
+
+function normalizeAtlasId(value, fallback = "atlas") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || fallback;
+}
+
+function normalizeAtlasCollection(rawAtlas, fallbackId = "atlas") {
+  if (!rawAtlas || typeof rawAtlas !== "object") {
+    return null;
+  }
+
+  const regions = Array.isArray(rawAtlas.regions) ? rawAtlas.regions : [];
+  if (!regions.length) {
+    return null;
+  }
+
+  const id = normalizeAtlasId(rawAtlas.id, fallbackId);
+
+  return {
+    id,
+    name: String(rawAtlas.name || rawAtlas.label || id).trim() || id,
+    glossary: Array.isArray(rawAtlas.glossary) ? rawAtlas.glossary : [],
+    overview: rawAtlas.overview || {},
+    regions
+  };
+}
+
+function buildLegacyAtlasCollection() {
+  return {
+    id: normalizeAtlasId(ATLAS_CONFIG.defaultAtlasId || "climate-water", "climate-water"),
+    name: String(ATLAS_CONFIG.defaultAtlasName || "Climate and Water").trim() || "Climate and Water",
+    glossary: Array.isArray(window.ATLAS_GLOSSARY) ? window.ATLAS_GLOSSARY : [],
+    overview: window.ATLAS_OVERVIEW || {},
+    regions: Array.isArray(window.REGIONS) ? window.REGIONS : []
+  };
+}
+
+const ATLAS_COLLECTIONS = (() => {
+  const collections = Array.isArray(window.ATLASES)
+    ? window.ATLASES
+        .map((atlas, index) => normalizeAtlasCollection(atlas, `atlas-${index + 1}`))
+        .filter(Boolean)
+    : [];
+
+  if (collections.length) {
+    return collections;
+  }
+
+  const legacyAtlas = buildLegacyAtlasCollection();
+  return legacyAtlas.regions.length ? [legacyAtlas] : [];
+})();
+
+let activeAtlas = null;
+let REGIONS = [];
+let ATLAS_GLOSSARY = [];
+let ATLAS_OVERVIEW = {};
+let INDEX_BY_ID = new Map();
+
+function getAtlasById(atlasId) {
+  return ATLAS_COLLECTIONS.find((atlas) => atlas.id === atlasId) || ATLAS_COLLECTIONS[0] || null;
+}
+
+function setActiveAtlasData(atlasId) {
+  activeAtlas = getAtlasById(atlasId);
+  REGIONS = activeAtlas?.regions || [];
+  ATLAS_GLOSSARY = activeAtlas?.glossary || [];
+  ATLAS_OVERVIEW = activeAtlas?.overview || {};
+  INDEX_BY_ID = new Map(REGIONS.map((region, index) => [region.id, index]));
+  return activeAtlas;
+}
+
+function getActiveAtlasId() {
+  return activeAtlas?.id || "";
+}
+
+function getActiveAtlasName() {
+  return activeAtlas?.name || "Atlas";
+}
+
+setActiveAtlasData(ATLAS_COLLECTIONS[0]?.id || "");
 
 const ICONS = {
   terrain:
@@ -29,6 +111,7 @@ const ICONS = {
 };
 
 const state = {
+  atlasId: getActiveAtlasId(),
   index: 0,
   started: false,
   currentScene: "cover",
@@ -39,8 +122,8 @@ const state = {
   mapReady: false,
   pendingMapId: null,
   moderatorDrafts: mergeDraftMaps(
-    buildDraftMap(MODERATOR_DRAFTS),
-    USE_BROWSER_DRAFTS ? loadStoredDrafts() : new Map()
+    buildDraftMap(MODERATOR_DRAFTS, getActiveAtlasId()),
+    USE_BROWSER_DRAFTS ? loadStoredDrafts(getActiveAtlasId()) : new Map()
   ),
   moderatorRegionId: REGIONS[0]?.id ?? "",
   moderatorPdfUrls: new Map(),
@@ -60,13 +143,18 @@ const view = {
 };
 
 const elements = {
+  atlasSelect: document.querySelector("#atlas-select"),
+  atlasCurrentName: document.querySelector("#atlas-current-name"),
   cover: document.querySelector("#cover"),
   album: document.querySelector("#album"),
   contents: document.querySelector("#contents"),
   moderator: document.querySelector("#moderator"),
   metricPlates: document.querySelector("#metric-plates"),
+  metricPlatesLabel: document.querySelector("#metric-plates-label"),
   metricRivers: document.querySelector("#metric-rivers"),
+  metricRiversLabel: document.querySelector("#metric-rivers-label"),
   metricSea: document.querySelector("#metric-sea"),
+  metricSeaLabel: document.querySelector("#metric-sea-label"),
   btnBegin: document.querySelector("#btnBegin"),
   btnOpenModerator: document.querySelector("#btnOpenModerator"),
   btnContents: document.querySelector("#btnContents"),
@@ -81,6 +169,7 @@ const elements = {
   pTypeB: document.querySelector("#pTypeB"),
   cName: document.querySelector("#cName"),
   cIdx: document.querySelector("#cIdx"),
+  cTotal: document.querySelector("#cTotal"),
   prev: document.querySelector("#prev"),
   next: document.querySelector("#next"),
   filmstrip: document.querySelector("#filmstrip"),
@@ -104,6 +193,7 @@ const elements = {
   drSummary: document.querySelector("#drSummary"),
   drFacts: document.querySelector("#drFacts"),
   drGloss: document.querySelector("#drGloss"),
+  contentsSubtitle: document.querySelector("#contents-subtitle"),
   contentsSearch: document.querySelector("#contents-search"),
   contentsCount: document.querySelector("#contents-count"),
   contentsGrid: document.querySelector("#cgrid"),
@@ -194,17 +284,19 @@ function shadeHexColor(hexColor, percent) {
     .join("")}`;
 }
 
-function normalizeDraft(rawDraft) {
+function normalizeDraft(rawDraft, atlasId = getActiveAtlasId()) {
   if (!rawDraft || typeof rawDraft !== "object") {
     return null;
   }
 
+  const draftAtlasId = normalizeAtlasId(rawDraft.atlasId || atlasId || getActiveAtlasId(), atlasId || "atlas");
   const regionId = String(rawDraft.regionId || rawDraft.id || "").trim();
-  if (!regionId || !INDEX_BY_ID.has(regionId)) {
+  if (!regionId || draftAtlasId !== atlasId || !INDEX_BY_ID.has(regionId)) {
     return null;
   }
 
   const normalized = {
+    atlasId: draftAtlasId,
     regionId,
     caption: String(rawDraft.caption || "").trim(),
     summary: String(rawDraft.summary || "").trim(),
@@ -224,11 +316,11 @@ function normalizeDraft(rawDraft) {
   return normalized;
 }
 
-function buildDraftMap(drafts) {
+function buildDraftMap(drafts, atlasId = getActiveAtlasId()) {
   const draftMap = new Map();
 
   (drafts || []).forEach((draft) => {
-    const normalized = normalizeDraft(draft);
+    const normalized = normalizeDraft(draft, atlasId);
 
     if (normalized) {
       draftMap.set(normalized.regionId, normalized);
@@ -256,22 +348,48 @@ function serializeDraftMap(draftMap) {
   });
 }
 
-function loadStoredDrafts() {
+function readStoredDraftPayload() {
   if (!USE_BROWSER_DRAFTS) {
-    return new Map();
+    return {};
   }
 
   try {
     const raw = window.localStorage.getItem(MODERATOR_STORAGE_KEY);
 
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    }
+  } catch {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LEGACY_MODERATOR_STORAGE_KEY);
+
     if (!raw) {
-      return new Map();
+      return {};
     }
 
-    return buildDraftMap(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return {
+        [ATLAS_COLLECTIONS[0]?.id || "atlas"]: parsed
+      };
+    }
+
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    return new Map();
+    return {};
   }
+}
+
+function loadStoredDrafts(atlasId = getActiveAtlasId()) {
+  const payload = readStoredDraftPayload();
+  const drafts = Array.isArray(payload) ? payload : payload?.[atlasId];
+  return buildDraftMap(Array.isArray(drafts) ? drafts : [], atlasId);
 }
 
 function persistDrafts() {
@@ -279,7 +397,10 @@ function persistDrafts() {
     return;
   }
 
-  window.localStorage.setItem(MODERATOR_STORAGE_KEY, JSON.stringify(serializeDraftMap(state.moderatorDrafts)));
+  const payload = readStoredDraftPayload();
+  const nextPayload = Array.isArray(payload) ? {} : { ...payload };
+  nextPayload[getActiveAtlasId()] = serializeDraftMap(state.moderatorDrafts);
+  window.localStorage.setItem(MODERATOR_STORAGE_KEY, JSON.stringify(nextPayload));
 }
 
 function slugifyProjectPdfName(value) {
@@ -299,12 +420,15 @@ function buildProjectPdfFileName(value, regionId) {
 function buildProjectArchiveManifest(draftMap) {
   return {
     version: 1,
+    atlasId: getActiveAtlasId(),
+    atlasName: getActiveAtlasName(),
     updatedAt: new Date().toISOString(),
     archiveFolder: MODERATOR_PROJECT_ARCHIVE_PATH,
     drafts: serializeDraftMap(draftMap).map((draft) => {
       const region = REGIONS[INDEX_BY_ID.get(draft.regionId)];
 
       return {
+        atlasId: draft.atlasId || getActiveAtlasId(),
         regionId: draft.regionId,
         regionName: region?.name || draft.regionId,
         sourcePdf: draft.sourcePdf || "",
@@ -457,6 +581,10 @@ function showScene(sceneName) {
     sceneName = state.started ? "album" : "cover";
   }
 
+  if (!REGIONS.length && sceneName !== "cover" && sceneName !== "contents") {
+    sceneName = "cover";
+  }
+
   elements.cover.hidden = sceneName !== "cover";
   elements.album.hidden = sceneName !== "album";
   elements.contents.hidden = sceneName !== "contents";
@@ -478,10 +606,100 @@ function syncModeratorAvailability() {
   }
 }
 
+function populateAtlasOptions() {
+  if (!elements.atlasSelect) {
+    return;
+  }
+
+  elements.atlasSelect.innerHTML = ATLAS_COLLECTIONS.map(
+    (atlas) => `<option value="${escapeHtml(atlas.id)}">${escapeHtml(atlas.name)}</option>`
+  ).join("");
+  elements.atlasSelect.value = getActiveAtlasId();
+}
+
+function getOverviewMetricText(value, fallback = "--") {
+  return Number.isFinite(Number(value)) ? String(Math.round(Number(value))) : fallback;
+}
+
 function updateOverview() {
   elements.metricPlates.textContent = String(REGIONS.length);
-  elements.metricRivers.textContent = String(ATLAS_OVERVIEW.riverCount || 2);
-  elements.metricSea.textContent = String(ATLAS_OVERVIEW.seaCount || 1);
+  elements.metricRivers.textContent = getOverviewMetricText(ATLAS_OVERVIEW.riverCount);
+  elements.metricSea.textContent = getOverviewMetricText(ATLAS_OVERVIEW.seaCount);
+
+  if (elements.metricPlatesLabel) {
+    elements.metricPlatesLabel.textContent = ATLAS_OVERVIEW.plateLabel || "Plates";
+  }
+
+  if (elements.metricRiversLabel) {
+    elements.metricRiversLabel.textContent = ATLAS_OVERVIEW.riverLabel || "Great Rivers";
+  }
+
+  if (elements.metricSeaLabel) {
+    elements.metricSeaLabel.textContent = ATLAS_OVERVIEW.seaLabel || "Vanishing Sea";
+  }
+
+  if (elements.atlasCurrentName) {
+    elements.atlasCurrentName.textContent = getActiveAtlasName();
+  }
+
+  if (elements.contentsSubtitle) {
+    elements.contentsSubtitle.textContent = `Search plates in ${getActiveAtlasName()}`;
+  }
+}
+
+function switchAtlas(atlasId) {
+  const nextAtlas = setActiveAtlasData(atlasId);
+
+  if (!nextAtlas) {
+    return;
+  }
+
+  state.atlasId = nextAtlas.id;
+  state.index = 0;
+  state.query = "";
+  state.projectArchiveRootHandle = null;
+
+  if (elements.contentsSearch) {
+    elements.contentsSearch.value = "";
+  }
+
+  closeDrawer();
+  resetModeratorSessionCache();
+
+  state.moderatorDrafts = mergeDraftMaps(
+    buildDraftMap(MODERATOR_DRAFTS, nextAtlas.id),
+    USE_BROWSER_DRAFTS ? loadStoredDrafts(nextAtlas.id) : new Map()
+  );
+  state.moderatorRegionId = REGIONS[0]?.id ?? "";
+
+  populateAtlasOptions();
+  updateOverview();
+  populateModeratorRegionOptions();
+  buildFilmstrip();
+  buildContents();
+  buildModeratorDraftList();
+
+  if (!REGIONS.length) {
+    state.started = false;
+    showScene("cover");
+    return;
+  }
+
+  setTheme(getEffectiveRegion(REGIONS[0]) || REGIONS[0]);
+
+  if (state.currentScene === "moderator") {
+    populateModeratorForm(state.moderatorRegionId);
+    return;
+  }
+
+  if (state.started || state.currentScene === "album") {
+    state.started = true;
+    render(0);
+    return;
+  }
+
+  syncNavigation();
+  syncFilmstrip();
 }
 
 function syncFullscreenLabel() {
@@ -692,7 +910,7 @@ function renderMap(region) {
     state.mapReady = true;
     elements.mapImage.classList.remove("swap");
     elements.mapImage.src = region.map;
-    elements.mapImage.alt = `${region.name} climate and water plate`;
+    elements.mapImage.alt = `${region.name} ${String(region.type || "atlas plate").toLowerCase()}`;
     elements.mapImage.hidden = false;
     elements.mapPlaceholder.hidden = true;
 
@@ -730,6 +948,9 @@ function syncNavigation() {
   elements.prev.disabled = state.index === 0;
   elements.next.disabled = state.index === REGIONS.length - 1;
   elements.cIdx.textContent = String(state.index + 1).padStart(2, "0");
+  if (elements.cTotal) {
+    elements.cTotal.textContent = String(REGIONS.length).padStart(2, "0");
+  }
   elements.cName.textContent = getEffectiveRegion(REGIONS[state.index])?.name || "Atlas plate";
 }
 
@@ -848,8 +1069,8 @@ function buildContents() {
   if (!visibleRegions.length) {
     elements.contentsGrid.innerHTML = `
       <div class="empty-contents">
-        No climate plates match this filter. Clear the search or add broader keywords
-        in js/regions.js so the contents view can surface them.
+        No atlas plates match this filter. Clear the search or add broader keywords
+        in js/regions.js so this atlas can surface them.
       </div>
     `;
     return;
@@ -960,8 +1181,9 @@ function revokeModeratorPdf(regionId) {
 
   if (existingDocument?.loadingTask?.destroy) {
     existingDocument.loadingTask.destroy();
-    state.moderatorPdfDocuments.delete(regionId);
   }
+
+  state.moderatorPdfDocuments.delete(regionId);
 
   state.moderatorSessionFiles.delete(regionId);
   state.moderatorPdfBytes.delete(regionId);
@@ -970,6 +1192,19 @@ function revokeModeratorPdf(regionId) {
   if (elements.moderatorRegion.value === regionId) {
     resetModeratorPdfCanvas();
   }
+}
+
+function resetModeratorSessionCache() {
+  Array.from(state.moderatorPdfUrls.keys()).forEach((regionId) => {
+    revokeModeratorPdf(regionId);
+  });
+
+  state.moderatorPdfUrls.clear();
+  state.moderatorSessionFiles.clear();
+  state.moderatorPdfBytes.clear();
+  state.moderatorPdfDocuments.clear();
+  state.moderatorPdfPageByRegion.clear();
+  resetModeratorPdfCanvas();
 }
 
 function resetModeratorPdfCanvas() {
@@ -1243,7 +1478,7 @@ function buildModeratorDraftList() {
   if (!drafts.length) {
     elements.moderatorDraftList.innerHTML = `
       <div class="draft-empty">
-        No moderator drafts saved yet. Pick a region, add a PDF reference and a description,
+        No moderator drafts saved yet. Pick a plate, add a PDF reference and a description,
         then save the draft to create a handoff package.
       </div>
     `;
@@ -1312,6 +1547,7 @@ function createDraftFromForm() {
   const keepArchivedProjectPath = !normalizedProjectPdfName || !archivedProjectName || normalizedProjectPdfName === archivedProjectName;
 
   const draft = {
+    atlasId: getActiveAtlasId(),
     regionId,
     caption: elements.moderatorCaption.value.trim(),
     summary: elements.moderatorSummary.value.trim(),
@@ -1382,6 +1618,7 @@ async function archiveModeratorPdfToProject() {
   const timestamp = new Date().toLocaleString();
   const nextDraft = {
     ...(createDraftFromForm() || {
+      atlasId: getActiveAtlasId(),
       regionId,
       caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
       summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
@@ -1473,6 +1710,7 @@ async function integrateModeratorPdfIntoAtlas() {
   }
 
   const fallbackDraft = {
+    atlasId: getActiveAtlasId(),
     regionId,
     caption: elements.moderatorCaption.value.trim() || existingDraft?.caption || currentRegion?.caption || "",
     summary: elements.moderatorSummary.value.trim() || existingDraft?.summary || currentRegion?.summary || "",
@@ -1541,16 +1779,18 @@ function exportModeratorHandoff() {
 
   const payload = {
     version: 1,
+    atlasId: getActiveAtlasId(),
+    atlasName: getActiveAtlasName(),
     exportedAt: new Date().toISOString(),
     instructions: [
-      "Give this JSON together with the original region PDFs to the associate finishing the atlas.",
+      "Give this JSON together with the original source PDFs to the associate finishing the atlas.",
       "Run python tools/apply_moderator_handoff.py moderator-handoff.json to integrate the draft text into the project.",
-      "Run python tools/extract_maps.py on the PDFs, rename the desired JPGs to match the region map paths, then rebuild with python tools/build.py."
+      "Run python tools/extract_maps.py on the PDFs, rename the desired JPGs to match the atlas map paths, then rebuild with python tools/build.py."
     ],
     drafts
   };
 
-  const fileName = `atlas-moderator-handoff-${new Date().toISOString().slice(0, 10)}.json`;
+  const fileName = `atlas-moderator-handoff-${getActiveAtlasId()}-${new Date().toISOString().slice(0, 10)}.json`;
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -1569,10 +1809,24 @@ async function importModeratorHandoff(file) {
     const text = await file.text();
     const parsed = JSON.parse(text);
     const drafts = Array.isArray(parsed) ? parsed : parsed.drafts;
-    const importedMap = buildDraftMap(Array.isArray(drafts) ? drafts : []);
+    const importedMap = buildDraftMap(Array.isArray(drafts) ? drafts : [], getActiveAtlasId());
 
     if (!importedMap.size) {
-      setModeratorStatus("The selected handoff file did not contain any valid region drafts.", true);
+      const sourceAtlasId = normalizeAtlasId(
+        (!Array.isArray(parsed) && parsed?.atlasId) || (Array.isArray(drafts) ? drafts[0]?.atlasId : "") || getActiveAtlasId(),
+        getActiveAtlasId()
+      );
+      const sourceAtlasName = !Array.isArray(parsed) ? String(parsed?.atlasName || "").trim() : "";
+
+      if (sourceAtlasId && sourceAtlasId !== getActiveAtlasId()) {
+        setModeratorStatus(
+          `The selected handoff was exported for ${sourceAtlasName || sourceAtlasId}. Switch the atlas selector first, then import it again.`,
+          true
+        );
+        return;
+      }
+
+      setModeratorStatus("The selected handoff file did not contain any valid drafts for the current atlas.", true);
       return;
     }
 
@@ -1608,7 +1862,7 @@ function closeContents() {
 }
 
 function openModerator(regionId = state.moderatorRegionId || REGIONS[0]?.id || "") {
-  if (!MODERATOR_ENABLED) {
+  if (!MODERATOR_ENABLED || !REGIONS.length) {
     return;
   }
 
@@ -1648,6 +1902,10 @@ function previewModeratorRegion() {
 }
 
 function beginAtlas() {
+  if (!REGIONS.length) {
+    return;
+  }
+
   state.started = true;
   showScene("album");
   render(state.index);
@@ -1774,6 +2032,12 @@ function wireViewportInteractions() {
 }
 
 function wireEvents() {
+  if (elements.atlasSelect) {
+    elements.atlasSelect.addEventListener("change", (event) => {
+      switchAtlas(event.target.value);
+    });
+  }
+
   elements.btnBegin.addEventListener("click", beginAtlas);
   if (elements.btnOpenModerator) {
     elements.btnOpenModerator.addEventListener("click", () => {
@@ -2025,15 +2289,22 @@ function wireEvents() {
   wireViewportInteractions();
 }
 
-if (REGIONS.length) {
+if (ATLAS_COLLECTIONS.length) {
+  populateAtlasOptions();
   updateOverview();
   syncModeratorAvailability();
   syncModeratorPreviewHint();
-  populateModeratorRegionOptions();
-  populateModeratorForm(state.moderatorRegionId || REGIONS[0].id);
-  buildFilmstrip();
-  buildContents();
-  buildModeratorDraftList();
+
+  if (REGIONS.length) {
+    setTheme(getEffectiveRegion(REGIONS[0]) || REGIONS[0]);
+    populateModeratorRegionOptions();
+    populateModeratorForm(state.moderatorRegionId || REGIONS[0].id);
+    buildFilmstrip();
+    buildContents();
+    buildModeratorDraftList();
+    syncNavigation();
+  }
+
   syncFullscreenLabel();
   wireEvents();
 }
