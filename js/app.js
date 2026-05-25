@@ -25,7 +25,11 @@ const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
 const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas repo root or the current atlas save folder so moderator files are saved where you expect.";
 const PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT = "project-root";
+const PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT = "archive-parent";
+const PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT = "archive-root";
+const PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT = "previews-root";
 const PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER = "atlas-folder";
+const PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE = "plate-package";
 const PROJECT_ARCHIVE_HANDLE_DB_NAME = "atlas-project-archive";
 const PROJECT_ARCHIVE_HANDLE_STORE_NAME = "handles";
 const PROJECT_ARCHIVE_HANDLE_STORAGE_KEY = "current";
@@ -497,7 +501,7 @@ function normalizeDraft(rawDraft, atlasId = getActiveAtlasId()) {
     atlasId: draftAtlasId,
     regionId,
     isCustomPlate,
-    name: String(rawDraft.name || rawDraft.title || "").trim(),
+    name: String(rawDraft.name || rawDraft.regionName || rawDraft.title || "").trim(),
     uz: String(rawDraft.uz || rawDraft.localName || "").trim(),
     type: String(rawDraft.type || "").trim(),
     scale: String(rawDraft.scale || "").trim(),
@@ -751,6 +755,49 @@ async function directoryHandleContainsFile(handle, fileName) {
   }
 }
 
+async function directoryHandleContainsDirectory(handle, directoryName) {
+  try {
+    await handle.getDirectoryHandle(directoryName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getExistingArchiveSubdirectoryHandle(baseHandle, pathSegments) {
+  let currentHandle = baseHandle;
+
+  for (const segment of pathSegments) {
+    currentHandle = await currentHandle.getDirectoryHandle(segment);
+  }
+
+  return currentHandle;
+}
+
+async function readArchiveTextFile(directoryHandle, fileName) {
+  try {
+    const fileHandle = await directoryHandle.getFileHandle(fileName);
+    const file = await fileHandle.getFile();
+    return await file.text();
+  } catch {
+    return "";
+  }
+}
+
+async function readArchiveJsonFile(directoryHandle, fileName) {
+  const text = await readArchiveTextFile(directoryHandle, fileName);
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 async function getProjectArchiveConnectionMode(handle, atlasId = getActiveAtlasId()) {
   if (!handle) {
     return "";
@@ -763,9 +810,41 @@ async function getProjectArchiveConnectionMode(handle, atlasId = getActiveAtlasI
   const handleName = String(handle.name || "").trim().toLowerCase();
   const atlasFolderName = String(atlasId || getActiveAtlasId() || "").trim().toLowerCase();
 
-  return handleName && atlasFolderName && handleName === atlasFolderName
-    ? PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER
-    : "";
+  if (await getExistingArchiveSubdirectoryHandle(handle, [PROJECT_PDFS_FOLDER, MODERATOR_PROJECT_ARCHIVE_FOLDER]).then(() => true).catch(() => false)) {
+    return PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT;
+  }
+
+  if (
+    (await directoryHandleContainsFile(handle, MODERATOR_PROJECT_MANIFEST_FILE)) ||
+    (await directoryHandleContainsDirectory(handle, MODERATOR_PROJECT_PREVIEW_FOLDER)) ||
+    (await directoryHandleContainsDirectory(handle, MODERATOR_PROJECT_HISTORY_FOLDER))
+  ) {
+    return PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT;
+  }
+
+  if (handleName === MODERATOR_PROJECT_PREVIEW_FOLDER && atlasFolderName) {
+    try {
+      await handle.getDirectoryHandle(atlasFolderName);
+      return PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT;
+    } catch {
+      return "";
+    }
+  }
+
+  if (handleName && atlasFolderName && handleName === atlasFolderName) {
+    return PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER;
+  }
+
+  if (await directoryHandleContainsFile(handle, "latest.json")) {
+    const latestPayload = await readArchiveJsonFile(handle, "latest.json");
+    const latestAtlasId = normalizeAtlasId(latestPayload?.atlasId || latestPayload?.plate?.atlasId || atlasId, atlasId || "atlas");
+
+    return !atlasFolderName || latestAtlasId === atlasFolderName
+      ? PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE
+      : "";
+  }
+
+  return "";
 }
 
 async function isValidProjectArchiveRootHandle(handle, atlasId = getActiveAtlasId()) {
@@ -846,7 +925,12 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
 
   const rootHandle = state.projectArchiveRootHandle;
 
-  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+  if (
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE
+  ) {
     return rootHandle;
   }
 
@@ -866,6 +950,21 @@ async function getArchiveSubdirectoryHandle(baseHandle, pathSegments) {
 }
 
 async function getProjectPlatePackageHandle(archiveHandle, regionId, atlasId = getActiveAtlasId()) {
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE) {
+    const latestPayload = await readArchiveJsonFile(archiveHandle, "latest.json");
+    const packageRegionId = String(latestPayload?.plate?.regionId || latestPayload?.regionId || archiveHandle.name || "").trim();
+
+    if (packageRegionId && packageRegionId !== regionId) {
+      throw createProjectArchiveRootError(`The connected plate package is for ${packageRegionId}; choose a package for ${regionId} or connect a parent archive folder.`);
+    }
+
+    return archiveHandle;
+  }
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT) {
+    return getArchiveSubdirectoryHandle(archiveHandle, [atlasId, regionId]);
+  }
+
   return getArchiveSubdirectoryHandle(
     archiveHandle,
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER
@@ -985,7 +1084,11 @@ async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "d
   const timestampToken = buildTimestampToken();
   const snapshotFileName = `${timestampToken}-${String(reason || "draft-save").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}.json`;
 
-  if (state.projectArchiveConnectionMode !== PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+  if (
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT
+  ) {
     const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
 
     await writeArchiveTextFile(historyHandle, snapshotFileName, payloadText);
@@ -1056,7 +1159,11 @@ async function syncDraftToProjectArchive({
 }
 
 async function writeProjectArchiveManifest(archiveHandle, draftMap) {
-  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+  if (
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE
+  ) {
     return false;
   }
 
@@ -1064,6 +1171,125 @@ async function writeProjectArchiveManifest(archiveHandle, draftMap) {
   const writable = await manifestHandle.createWritable();
   await writable.write(JSON.stringify(buildProjectArchiveManifest(draftMap), null, 2));
   await writable.close();
+
+  return true;
+}
+
+function extractDraftFromProjectArchivePayload(payload, atlasId = getActiveAtlasId()) {
+  if (!payload || typeof payload !== "object" || payload.deleted) {
+    return null;
+  }
+
+  const rawDraft = payload.plate && typeof payload.plate === "object" ? payload.plate : payload;
+
+  if (!rawDraft || typeof rawDraft !== "object" || rawDraft.deleted) {
+    return null;
+  }
+
+  return normalizeDraft(
+    {
+      ...rawDraft,
+      atlasId: rawDraft.atlasId || payload.atlasId || atlasId
+    },
+    atlasId
+  );
+}
+
+async function collectProjectArchiveLatestDrafts(packageRootHandle, atlasId = getActiveAtlasId()) {
+  const drafts = [];
+
+  if (!packageRootHandle?.entries) {
+    return drafts;
+  }
+
+  try {
+    for await (const [, plateHandle] of packageRootHandle.entries()) {
+      if (plateHandle.kind !== "directory") {
+        continue;
+      }
+
+      const payload = await readArchiveJsonFile(plateHandle, "latest.json");
+      const draft = extractDraftFromProjectArchivePayload(payload, atlasId);
+
+      if (draft) {
+        drafts.push(draft);
+      }
+    }
+  } catch {
+    // A connected folder may be read-only or partially populated; keep any drafts already found.
+  }
+
+  return drafts;
+}
+
+async function loadProjectArchiveDrafts(atlasId = getActiveAtlasId()) {
+  const archiveHandle = await getProjectArchiveDirectoryHandle(false);
+
+  if (!archiveHandle) {
+    return new Map();
+  }
+
+  const drafts = [];
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE) {
+    const draft = extractDraftFromProjectArchivePayload(await readArchiveJsonFile(archiveHandle, "latest.json"), atlasId);
+    return buildDraftMap(draft ? [draft] : [], atlasId);
+  }
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
+    return buildDraftMap(await collectProjectArchiveLatestDrafts(archiveHandle, atlasId), atlasId);
+  }
+
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT) {
+    try {
+      const atlasHandle = await getExistingArchiveSubdirectoryHandle(archiveHandle, [atlasId]);
+      return buildDraftMap(await collectProjectArchiveLatestDrafts(atlasHandle, atlasId), atlasId);
+    } catch {
+      return new Map();
+    }
+  }
+
+  const manifest = await readArchiveJsonFile(archiveHandle, MODERATOR_PROJECT_MANIFEST_FILE);
+  const manifestAtlasId = normalizeAtlasId(manifest?.atlasId || atlasId, atlasId || "atlas");
+
+  if (manifestAtlasId === atlasId && Array.isArray(manifest?.drafts)) {
+    drafts.push(
+      ...manifest.drafts
+        .map((draft) => extractDraftFromProjectArchivePayload({ ...draft, atlasId: draft.atlasId || manifest.atlasId || atlasId }, atlasId))
+        .filter(Boolean)
+    );
+  }
+
+  try {
+    const atlasHandle = await getExistingArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId]);
+    drafts.push(...await collectProjectArchiveLatestDrafts(atlasHandle, atlasId));
+  } catch {
+    // The archive can still be useful with only the manifest present.
+  }
+
+  return buildDraftMap(drafts, atlasId);
+}
+
+async function syncProjectArchiveDraftsFromHandle() {
+  const archiveDrafts = await loadProjectArchiveDrafts(getActiveAtlasId());
+
+  if (!archiveDrafts.size) {
+    return false;
+  }
+
+  state.moderatorDrafts = mergeDraftMaps(state.moderatorDrafts, archiveDrafts);
+
+  try {
+    persistDrafts();
+  } catch {
+    // The connected archive remains the source of truth if browser storage is full.
+  }
+
+  syncModeratorViews();
+
+  if (state.moderatorRegionId) {
+    populateModeratorForm(state.moderatorRegionId);
+  }
 
   return true;
 }
@@ -1303,6 +1529,9 @@ function switchAtlas(atlasId) {
   buildFilmstrip();
   buildContents();
   buildModeratorDraftList();
+  void syncProjectArchiveDraftsFromHandle().catch(() => {
+    // Keep atlas switching responsive even if the connected archive cannot be read.
+  });
 
   if (!REGIONS.length) {
     state.started = false;
@@ -1381,9 +1610,10 @@ async function connectModeratorProjectRoot() {
     state.projectArchiveRootHandle = pickedHandle;
     state.projectArchiveConnectionMode = pickedMode;
     await storeProjectArchiveRootHandle(pickedHandle);
+    const syncedArchiveDrafts = await syncProjectArchiveDraftsFromHandle();
     updateModeratorProjectRootMeta(elements.moderatorRegion.value);
     setModeratorStatus(
-      `Connected save folder ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.`
+      `Connected save folder ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.${syncedArchiveDrafts ? " Live archive records were loaded." : ""}`
     );
   } catch (error) {
     if (error?.name === "AbortError") {
@@ -3664,7 +3894,8 @@ if (ATLAS_COLLECTIONS.length) {
 
   syncFullscreenLabel();
   wireEvents();
-  void restoreStoredProjectArchiveRootHandle().then(() => {
+  void restoreStoredProjectArchiveRootHandle().then(async () => {
+    await syncProjectArchiveDraftsFromHandle();
     updateModeratorProjectRootMeta(state.moderatorRegionId || REGIONS[0]?.id || "");
   }).catch(() => {
     // Ignore restoration errors and fall back to reconnecting manually.
