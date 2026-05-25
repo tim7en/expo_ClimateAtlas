@@ -23,10 +23,11 @@ const MODERATOR_PROJECT_HISTORY_PATH = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${MODE
 const DEFAULT_PLATE_TYPE = "Atlas plate";
 const DEFAULT_PLATE_SCALE = "Curated plate";
 const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
-const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas repo root or the current atlas save folder so moderator files are saved where you expect.";
+const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas repo root, archive folder, atlas-previews folder, current atlas folder, a single plate package, or an empty project workspace.";
 const PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT = "project-root";
 const PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT = "archive-parent";
 const PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT = "archive-root";
+const PROJECT_ARCHIVE_CONNECTION_WORKSPACE = "workspace";
 const PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT = "previews-root";
 const PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER = "atlas-folder";
 const PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE = "plate-package";
@@ -827,7 +828,7 @@ async function getProjectArchiveConnectionMode(handle, atlasId = getActiveAtlasI
       await handle.getDirectoryHandle(atlasFolderName);
       return PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT;
     } catch {
-      return "";
+      return PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT;
     }
   }
 
@@ -844,7 +845,7 @@ async function getProjectArchiveConnectionMode(handle, atlasId = getActiveAtlasI
       : "";
   }
 
-  return "";
+  return PROJECT_ARCHIVE_CONNECTION_WORKSPACE;
 }
 
 async function isValidProjectArchiveRootHandle(handle, atlasId = getActiveAtlasId()) {
@@ -927,6 +928,7 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
 
   if (
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_WORKSPACE ||
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT ||
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER ||
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE
@@ -1087,7 +1089,8 @@ async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "d
   if (
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT ||
     state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT ||
-    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT ||
+    state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_WORKSPACE
   ) {
     const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
 
@@ -1578,6 +1581,10 @@ function getModeratorProjectPackageTarget(regionId = state.moderatorRegionId || 
     return `${getActiveAtlasId()}/${regionId}/`;
   }
 
+  if (state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_WORKSPACE) {
+    return `${MODERATOR_PROJECT_PREVIEW_FOLDER}/${getActiveAtlasId()}/${regionId}/`;
+  }
+
   return `${buildProjectPlatePackagePath(regionId, getActiveAtlasId())}/`;
 }
 
@@ -1604,6 +1611,7 @@ function updateModeratorProjectRootMeta(regionId = state.moderatorRegionId || el
     [PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT]: "project root",
     [PROJECT_ARCHIVE_CONNECTION_ARCHIVE_PARENT]: "archive parent",
     [PROJECT_ARCHIVE_CONNECTION_ARCHIVE_ROOT]: "moderator archive",
+    [PROJECT_ARCHIVE_CONNECTION_WORKSPACE]: "project workspace",
     [PROJECT_ARCHIVE_CONNECTION_PREVIEWS_ROOT]: "atlas previews folder",
     [PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER]: "atlas save folder",
     [PROJECT_ARCHIVE_CONNECTION_PLATE_PACKAGE]: "plate package"
@@ -2107,6 +2115,47 @@ function getContentsCountLabel(count) {
   return `${count} plate${count === 1 ? "" : "s"} visible`;
 }
 
+function syncContentsCardThumbnail(card, region) {
+  const thumb = card.querySelector(".cthumb");
+  const image = card.querySelector("img");
+
+  if (!thumb || !image || !region) {
+    return;
+  }
+
+  const setLoaded = () => {
+    thumb.classList.add("has-image");
+  };
+
+  const setMissing = () => {
+    thumb.classList.remove("has-image");
+  };
+
+  image.addEventListener("load", setLoaded);
+  image.addEventListener("error", setMissing);
+
+  if (image.complete && image.naturalWidth) {
+    setLoaded();
+  }
+
+  void resolveRegionAtlasPreviewImageSource(region)
+    .then((imageSource) => {
+      const nextSource = String(imageSource || getRegionAtlasFallbackImageSource(region) || "").trim();
+
+      if (!nextSource || image.src === nextSource) {
+        return;
+      }
+
+      setMissing();
+      image.src = nextSource;
+    })
+    .catch(() => {
+      if (!image.complete || !image.naturalWidth) {
+        setMissing();
+      }
+    });
+}
+
 function buildContents() {
   const visibleRegions = getVisibleRegions();
   elements.contentsCount.textContent = getContentsCountLabel(visibleRegions.length);
@@ -2164,24 +2213,7 @@ function buildContents() {
       jumpToIndex(Number(card.dataset.index));
     });
 
-    const thumb = card.querySelector(".cthumb");
-    const image = card.querySelector("img");
-
-    if (!thumb || !image) {
-      return;
-    }
-
-    image.addEventListener("load", () => {
-      thumb.classList.add("has-image");
-    });
-
-    image.addEventListener("error", () => {
-      thumb.classList.remove("has-image");
-    });
-
-    if (image.complete && image.naturalWidth) {
-      thumb.classList.add("has-image");
-    }
+    syncContentsCardThumbnail(card, getEffectiveRegion(card.dataset.regionId) || REGIONS[Number(card.dataset.index)]);
   });
 }
 
