@@ -583,12 +583,20 @@ function buildProjectPreviewFileName(regionId, pageNumber = 1) {
   return `${slug}-page-${String(Math.max(1, Number(pageNumber) || 1)).padStart(2, "0")}.jpg`;
 }
 
+function buildProjectPlatePackagePath(regionId, atlasId = getActiveAtlasId()) {
+  return `${MODERATOR_PROJECT_PREVIEW_PATH}/${atlasId}/${regionId}`;
+}
+
 function buildProjectPreviewPath(regionId, pageNumber = 1, atlasId = getActiveAtlasId()) {
-  return `${MODERATOR_PROJECT_PREVIEW_PATH}/${atlasId}/${buildProjectPreviewFileName(regionId, pageNumber)}`;
+  return `${buildProjectPlatePackagePath(regionId, atlasId)}/${buildProjectPreviewFileName(regionId, pageNumber)}`;
 }
 
 function buildProjectDraftLatestPath(regionId, atlasId = getActiveAtlasId()) {
-  return `${MODERATOR_PROJECT_HISTORY_PATH}/${atlasId}/${regionId}/latest.json`;
+  return `${buildProjectPlatePackagePath(regionId, atlasId)}/latest.json`;
+}
+
+function buildProjectPdfPath(regionId, fileName, atlasId = getActiveAtlasId()) {
+  return `${buildProjectPlatePackagePath(regionId, atlasId)}/${fileName}`;
 }
 
 function buildModeratorHistoryPayload(draft, reason = "draft-save", options = {}) {
@@ -690,6 +698,10 @@ async function getArchiveSubdirectoryHandle(baseHandle, pathSegments) {
   return currentHandle;
 }
 
+async function getProjectPlatePackageHandle(archiveHandle, regionId, atlasId = getActiveAtlasId()) {
+  return getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId, regionId]);
+}
+
 async function writeArchiveFile(fileHandle, contents) {
   const writable = await fileHandle.createWritable();
   await writable.write(contents);
@@ -714,6 +726,7 @@ async function dataUrlToBlob(dataUrl) {
 async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "draft-save", options = {}) {
   const atlasId = draft.atlasId || getActiveAtlasId();
   const historyHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_HISTORY_FOLDER, atlasId, draft.regionId]);
+  const packageHandle = await getProjectPlatePackageHandle(archiveHandle, draft.regionId, atlasId);
   const payload = buildModeratorHistoryPayload(draft, reason, options);
   const payloadText = JSON.stringify(payload, null, 2);
   const timestampToken = buildTimestampToken();
@@ -721,6 +734,7 @@ async function writeModeratorDraftHistoryFiles(archiveHandle, draft, reason = "d
 
   await writeArchiveTextFile(historyHandle, snapshotFileName, payloadText);
   await writeArchiveTextFile(historyHandle, "latest.json", payloadText);
+  await writeArchiveTextFile(packageHandle, "latest.json", payloadText);
 
   return {
     projectDraftPath: buildProjectDraftLatestPath(draft.regionId, atlasId),
@@ -747,6 +761,8 @@ async function syncDraftToProjectArchive({
 
   const nextDraft = { ...draft };
   const timestamp = new Date().toLocaleString();
+  const atlasId = nextDraft.atlasId || getActiveAtlasId();
+  const packageHandle = await getProjectPlatePackageHandle(archiveHandle, regionId, atlasId);
 
   if (savePdfCopy && sessionFile) {
     const fileName = buildProjectPdfFileName(
@@ -754,18 +770,16 @@ async function syncDraftToProjectArchive({
       regionId
     );
 
-    await writeArchiveBlobFile(archiveHandle, fileName, sessionFile);
+    await writeArchiveBlobFile(packageHandle, fileName, sessionFile);
     nextDraft.projectPdfName = fileName;
-    nextDraft.projectPdfPath = `${MODERATOR_PROJECT_ARCHIVE_PATH}/${fileName}`;
+    nextDraft.projectPdfPath = buildProjectPdfPath(regionId, fileName, atlasId);
     nextDraft.projectPdfSavedAt = timestamp;
   }
 
   if (previewDataUrl) {
-    const atlasId = nextDraft.atlasId || getActiveAtlasId();
-    const previewHandle = await getArchiveSubdirectoryHandle(archiveHandle, [MODERATOR_PROJECT_PREVIEW_FOLDER, atlasId]);
     const previewFileName = buildProjectPreviewFileName(regionId, previewPage);
 
-    await writeArchiveBlobFile(previewHandle, previewFileName, await dataUrlToBlob(previewDataUrl));
+    await writeArchiveBlobFile(packageHandle, previewFileName, await dataUrlToBlob(previewDataUrl));
     nextDraft.atlasPreviewPath = buildProjectPreviewPath(regionId, previewPage, atlasId);
     nextDraft.atlasPreviewSavedAt = timestamp;
     nextDraft.atlasPreviewImage = "";
@@ -2133,7 +2147,7 @@ async function saveModeratorDraft() {
       draft: nextDraft,
       regionId,
       sessionFile,
-      savePdfCopy: Boolean(sessionFile && !nextDraft.projectPdfPath),
+      savePdfCopy: Boolean(sessionFile),
       promptForHandle: false,
       reason: "draft-save"
     });
@@ -2343,7 +2357,7 @@ async function integrateModeratorPdfIntoAtlas() {
       sessionFile,
       previewDataUrl: atlasPreviewImage,
       previewPage: pageNumber,
-      savePdfCopy: Boolean(sessionFile && !nextDraft.projectPdfPath),
+      savePdfCopy: Boolean(sessionFile),
       promptForHandle: true,
       reason: "integrate-preview"
     });
