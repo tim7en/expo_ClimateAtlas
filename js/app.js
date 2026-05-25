@@ -26,6 +26,9 @@ const DEFAULT_CUSTOM_PLATE_PALETTE = ["#8e5a34", "#2f776d", "#d3b064"];
 const PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE = "Choose the atlas repo root or the current atlas save folder so moderator files are saved where you expect.";
 const PROJECT_ARCHIVE_CONNECTION_PROJECT_ROOT = "project-root";
 const PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER = "atlas-folder";
+const PROJECT_ARCHIVE_HANDLE_DB_NAME = "atlas-project-archive";
+const PROJECT_ARCHIVE_HANDLE_STORE_NAME = "handles";
+const PROJECT_ARCHIVE_HANDLE_STORAGE_KEY = "current";
 
 function buildIndex(regions) {
   return new Map((regions || []).map((region, index) => [region.id, index]));
@@ -35,6 +38,108 @@ function createProjectArchiveRootError(message = PROJECT_ARCHIVE_ROOT_ERROR_MESS
   const error = new Error(message);
   error.name = "ProjectArchiveRootError";
   return error;
+}
+
+function createIndexedDbRequestPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error || new Error("IndexedDB request failed."));
+    };
+  });
+}
+
+function createIndexedDbTransactionPromise(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => {
+      resolve();
+    };
+
+    transaction.onabort = transaction.onerror = () => {
+      reject(transaction.error || new Error("IndexedDB transaction failed."));
+    };
+  });
+}
+
+async function openProjectArchiveHandleDatabase() {
+  if (typeof indexedDB === "undefined") {
+    return null;
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(PROJECT_ARCHIVE_HANDLE_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(PROJECT_ARCHIVE_HANDLE_STORE_NAME)) {
+        request.result.createObjectStore(PROJECT_ARCHIVE_HANDLE_STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error || new Error("Could not open IndexedDB."));
+    };
+  });
+}
+
+async function storeProjectArchiveRootHandle(handle) {
+  const database = await openProjectArchiveHandleDatabase();
+
+  if (!database) {
+    return;
+  }
+
+  try {
+    const transaction = database.transaction(PROJECT_ARCHIVE_HANDLE_STORE_NAME, "readwrite");
+    const objectStore = transaction.objectStore(PROJECT_ARCHIVE_HANDLE_STORE_NAME);
+
+    if (handle) {
+      objectStore.put(handle, PROJECT_ARCHIVE_HANDLE_STORAGE_KEY);
+    } else {
+      objectStore.delete(PROJECT_ARCHIVE_HANDLE_STORAGE_KEY);
+    }
+
+    await createIndexedDbTransactionPromise(transaction);
+  } finally {
+    database.close();
+  }
+}
+
+async function loadStoredProjectArchiveRootHandle() {
+  const database = await openProjectArchiveHandleDatabase();
+
+  if (!database) {
+    return null;
+  }
+
+  try {
+    const transaction = database.transaction(PROJECT_ARCHIVE_HANDLE_STORE_NAME, "readonly");
+    const objectStore = transaction.objectStore(PROJECT_ARCHIVE_HANDLE_STORE_NAME);
+    const handle = await createIndexedDbRequestPromise(objectStore.get(PROJECT_ARCHIVE_HANDLE_STORAGE_KEY));
+
+    await createIndexedDbTransactionPromise(transaction);
+    return handle || null;
+  } finally {
+    database.close();
+  }
+}
+
+async function hasProjectArchiveHandlePermission(handle, mode = "read") {
+  if (!handle?.queryPermission) {
+    return true;
+  }
+
+  try {
+    return (await handle.queryPermission({ mode })) === "granted";
+  } catch {
+    return false;
+  }
 }
 
 function normalizeAtlasId(value, fallback = "atlas") {
@@ -667,6 +772,39 @@ async function isValidProjectArchiveRootHandle(handle, atlasId = getActiveAtlasI
   return Boolean(await getProjectArchiveConnectionMode(handle, atlasId));
 }
 
+let projectArchiveRootHandleRestorePromise = null;
+
+async function restoreStoredProjectArchiveRootHandle(atlasId = getActiveAtlasId()) {
+  if (state.projectArchiveRootHandle) {
+    return state.projectArchiveRootHandle;
+  }
+
+  if (!projectArchiveRootHandleRestorePromise) {
+    projectArchiveRootHandleRestorePromise = (async () => {
+      const storedHandle = await loadStoredProjectArchiveRootHandle();
+
+      if (!storedHandle || !(await hasProjectArchiveHandlePermission(storedHandle, "read"))) {
+        return null;
+      }
+
+      const storedMode = await getProjectArchiveConnectionMode(storedHandle, atlasId);
+
+      if (!storedMode) {
+        await storeProjectArchiveRootHandle(null);
+        return null;
+      }
+
+      state.projectArchiveRootHandle = storedHandle;
+      state.projectArchiveConnectionMode = storedMode;
+      return storedHandle;
+    })().finally(() => {
+      projectArchiveRootHandleRestorePromise = null;
+    });
+  }
+
+  return projectArchiveRootHandleRestorePromise;
+}
+
 async function getProjectArchiveDirectoryHandle(prompt = true) {
   if (typeof window.showDirectoryPicker !== "function") {
     return null;
@@ -679,6 +817,10 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
     state.projectArchiveConnectionMode = "";
   } else {
     state.projectArchiveConnectionMode = existingMode;
+  }
+
+  if (!state.projectArchiveRootHandle) {
+    await restoreStoredProjectArchiveRootHandle();
   }
 
   if (!state.projectArchiveRootHandle) {
@@ -695,6 +837,7 @@ async function getProjectArchiveDirectoryHandle(prompt = true) {
 
     state.projectArchiveRootHandle = pickedHandle;
     state.projectArchiveConnectionMode = pickedMode;
+    await storeProjectArchiveRootHandle(pickedHandle);
   }
 
   const rootHandle = state.projectArchiveRootHandle;
@@ -1233,6 +1376,7 @@ async function connectModeratorProjectRoot() {
 
     state.projectArchiveRootHandle = pickedHandle;
     state.projectArchiveConnectionMode = pickedMode;
+    await storeProjectArchiveRootHandle(pickedHandle);
     updateModeratorProjectRootMeta(elements.moderatorRegion.value);
     setModeratorStatus(
       `Connected save folder ${pickedHandle.name}. Plate packages will be saved under ${getModeratorProjectPackageTarget(elements.moderatorRegion.value)}.`
@@ -1245,6 +1389,7 @@ async function connectModeratorProjectRoot() {
 
     state.projectArchiveRootHandle = null;
     state.projectArchiveConnectionMode = "";
+    await storeProjectArchiveRootHandle(null);
     updateModeratorProjectRootMeta(elements.moderatorRegion.value);
     setModeratorStatus(error?.message || PROJECT_ARCHIVE_ROOT_ERROR_MESSAGE, true);
   }
@@ -3515,4 +3660,9 @@ if (ATLAS_COLLECTIONS.length) {
 
   syncFullscreenLabel();
   wireEvents();
+  void restoreStoredProjectArchiveRootHandle().then(() => {
+    updateModeratorProjectRootMeta(state.moderatorRegionId || REGIONS[0]?.id || "");
+  }).catch(() => {
+    // Ignore restoration errors and fall back to reconnecting manually.
+  });
 }
