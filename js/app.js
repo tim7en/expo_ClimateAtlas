@@ -1401,32 +1401,19 @@ function fillDrawer(region) {
   ).join("");
 }
 
-function renderMap(region) {
-  state.pendingMapId = region.id;
-  state.mapReady = false;
-  resetView();
-  showHint();
+function loadRenderedMapSource(region, source, requestId) {
+  if (!source) {
+    if (state.pendingMapId !== requestId) {
+      return;
+    }
 
-  const draftPdfMessage = region.sourcePdf
-    ? ` Current moderator draft source PDF: ${region.sourcePdf}.`
-    : "";
-
-  elements.scaleTag.textContent = region.scale || "Curated plate";
-  elements.placeholderTitle.textContent = region.sourcePdf
-    ? `Awaiting export from ${region.sourcePdf}`
-    : `${region.name} plate not found`;
-  elements.placeholderCopy.textContent = `${region.caption} Export a JPG to ${region.map} to enable panning and zooming in the offline atlas.${draftPdfMessage}`;
-  elements.mapImage.hidden = true;
-  elements.mapPlaceholder.hidden = false;
-  elements.mapImage.removeAttribute("src");
-  elements.mapImage.alt = "";
-
-  if (!region.map) {
+    state.mapReady = false;
+    elements.mapImage.hidden = true;
+    elements.mapPlaceholder.hidden = false;
     elements.hint.classList.add("gone");
     return;
   }
 
-  const requestId = region.id;
   const preview = new Image();
 
   preview.onload = () => {
@@ -1436,7 +1423,7 @@ function renderMap(region) {
 
     state.mapReady = true;
     elements.mapImage.classList.remove("swap");
-    elements.mapImage.src = region.map;
+    elements.mapImage.src = source;
     elements.mapImage.alt = `${region.name} ${String(region.type || "atlas plate").toLowerCase()}`;
     elements.mapImage.hidden = false;
     elements.mapPlaceholder.hidden = true;
@@ -1468,7 +1455,45 @@ function renderMap(region) {
     elements.hint.classList.add("gone");
   };
 
-  preview.src = region.map;
+  preview.src = source;
+}
+
+function renderMap(region) {
+  const requestId = `${region.id}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  state.pendingMapId = requestId;
+  state.mapReady = false;
+  resetView();
+  showHint();
+
+  const draftPdfMessage = region.sourcePdf
+    ? ` Current moderator draft source PDF: ${region.sourcePdf}.`
+    : "";
+
+  elements.scaleTag.textContent = region.scale || "Curated plate";
+  elements.placeholderTitle.textContent = region.sourcePdf
+    ? `Awaiting export from ${region.sourcePdf}`
+    : `${region.name} plate not found`;
+  elements.placeholderCopy.textContent = `${region.caption} Export a JPG to ${region.map} to enable panning and zooming in the offline atlas.${draftPdfMessage}`;
+  elements.mapImage.hidden = true;
+  elements.mapPlaceholder.hidden = false;
+  elements.mapImage.removeAttribute("src");
+  elements.mapImage.alt = "";
+
+  const fallbackSource = region.map || "";
+
+  if (!fallbackSource && !region.projectPdfPath) {
+    elements.hint.classList.add("gone");
+    return;
+  }
+
+  if ((region.projectPdfPath || state.moderatorPdfBytes.get(region.id)) && PDFJS_LIB?.getDocument) {
+    void renderRegionProjectPdfImage(region).then((pdfImage) => {
+      loadRenderedMapSource(region, pdfImage || fallbackSource, requestId);
+    });
+    return;
+  }
+
+  loadRenderedMapSource(region, fallbackSource, requestId);
 }
 
 function syncNavigation() {
@@ -1948,6 +1973,14 @@ async function renderModeratorAtlasPdfImage(regionId, requestedPage = 1) {
   }
 
   const pdfDocument = await documentEntry.promise;
+  return renderPdfDocumentPageToJpegDataUrl(pdfDocument, requestedPage);
+}
+
+async function renderPdfDocumentPageToJpegDataUrl(pdfDocument, requestedPage = 1) {
+  if (!pdfDocument) {
+    return "";
+  }
+
   const pageNumber = Math.max(1, Math.min(requestedPage, pdfDocument.numPages));
   const page = await pdfDocument.getPage(pageNumber);
   const baseViewport = page.getViewport({ scale: 1 });
@@ -1978,6 +2011,93 @@ async function renderModeratorAtlasPdfImage(regionId, requestedPage = 1) {
   }).promise;
 
   return canvas.toDataURL("image/jpeg", 0.96);
+}
+
+async function renderProjectAtlasPdfImage(projectPdfPath, requestedPage = 1) {
+  if (!projectPdfPath || !PDFJS_LIB?.getDocument) {
+    return "";
+  }
+
+  const loadingTask = PDFJS_LIB.getDocument({ url: projectPdfPath });
+
+  try {
+    const pdfDocument = await loadingTask.promise;
+    return renderPdfDocumentPageToJpegDataUrl(pdfDocument, requestedPage);
+  } catch {
+    return "";
+  } finally {
+    if (loadingTask.destroy) {
+      loadingTask.destroy();
+    }
+  }
+}
+
+async function renderPdfBytesToAtlasImage(pdfBytes, requestedPage = 1) {
+  if (!pdfBytes?.length || !PDFJS_LIB?.getDocument) {
+    return "";
+  }
+
+  const loadingTask = PDFJS_LIB.getDocument({ data: pdfBytes.slice() });
+
+  try {
+    const pdfDocument = await loadingTask.promise;
+    return renderPdfDocumentPageToJpegDataUrl(pdfDocument, requestedPage);
+  } catch {
+    return "";
+  } finally {
+    if (loadingTask.destroy) {
+      loadingTask.destroy();
+    }
+  }
+}
+
+function getRegionProjectPdfFileName(region) {
+  return getFileNameFromPath(
+    region?.projectPdfPath || "",
+    buildProjectPdfFileName(region?.projectPdfName || region?.sourcePdf || region?.id || "region-source", region?.id || "region")
+  );
+}
+
+async function resolveRegionProjectPdfFile(region) {
+  if (!region?.id) {
+    return null;
+  }
+
+  const archiveHandle = await getProjectArchiveDirectoryHandle(false);
+  if (!archiveHandle) {
+    return null;
+  }
+
+  try {
+    const packageHandle = await getProjectPlatePackageHandle(archiveHandle, region.id, region.atlasId || getActiveAtlasId());
+    const fileHandle = await packageHandle.getFileHandle(getRegionProjectPdfFileName(region));
+    return fileHandle.getFile();
+  } catch {
+    return null;
+  }
+}
+
+async function renderRegionProjectPdfImage(region) {
+  const requestedPage = region?.atlasPreviewPage || 1;
+  const sessionPdfBytes = state.moderatorPdfBytes.get(region?.id || "");
+
+  if (sessionPdfBytes?.length) {
+    const sessionImage = await renderPdfBytesToAtlasImage(sessionPdfBytes, requestedPage);
+    if (sessionImage) {
+      return sessionImage;
+    }
+  }
+
+  const archivedProjectFile = await resolveRegionProjectPdfFile(region);
+  if (archivedProjectFile) {
+    const archivedBytes = new Uint8Array(await archivedProjectFile.arrayBuffer());
+    const archivedImage = await renderPdfBytesToAtlasImage(archivedBytes, requestedPage);
+    if (archivedImage) {
+      return archivedImage;
+    }
+  }
+
+  return renderProjectAtlasPdfImage(region?.projectPdfPath || "", requestedPage);
 }
 
 function renderCanvasToJpegDataUrl(sourceCanvas, targetWidth, targetHeight, quality) {
