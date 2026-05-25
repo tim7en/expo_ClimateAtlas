@@ -1422,7 +1422,11 @@ function fillDrawer(region) {
 }
 
 function loadRenderedMapSource(region, source, requestId) {
-  if (!source) {
+  const sources = (Array.isArray(source) ? source : [source])
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+
+  if (!sources.length) {
     if (state.pendingMapId !== requestId) {
       return;
     }
@@ -1434,48 +1438,63 @@ function loadRenderedMapSource(region, source, requestId) {
     return;
   }
 
-  const preview = new Image();
+  const trySource = (sourceIndex) => {
+    const nextSource = sources[sourceIndex];
 
-  preview.onload = () => {
-    if (state.pendingMapId !== requestId) {
+    if (!nextSource) {
+      if (state.pendingMapId !== requestId) {
+        return;
+      }
+
+      state.mapReady = false;
+      elements.mapImage.hidden = true;
+      elements.mapPlaceholder.hidden = false;
+      elements.hint.classList.add("gone");
       return;
     }
 
-    state.mapReady = true;
-    elements.mapImage.classList.remove("swap");
-    elements.mapImage.src = source;
-    elements.mapImage.alt = `${region.name} ${String(region.type || "atlas plate").toLowerCase()}`;
-    elements.mapImage.hidden = false;
-    elements.mapPlaceholder.hidden = true;
+    const preview = new Image();
 
-    elements.mapImage.onload = () => {
-      if (state.pendingMapId === requestId) {
+    preview.onload = () => {
+      if (state.pendingMapId !== requestId) {
+        return;
+      }
+
+      state.mapReady = true;
+      elements.mapImage.classList.remove("swap");
+      elements.mapImage.src = nextSource;
+      elements.mapImage.alt = `${region.name} ${String(region.type || "atlas plate").toLowerCase()}`;
+      elements.mapImage.hidden = false;
+      elements.mapPlaceholder.hidden = true;
+
+      elements.mapImage.onload = () => {
+        if (state.pendingMapId === requestId) {
+          fitImage();
+          showHint();
+        }
+      };
+
+      if (elements.mapImage.complete && elements.mapImage.naturalWidth) {
         fitImage();
         showHint();
       }
+
+      void elements.mapImage.offsetWidth;
+      elements.mapImage.classList.add("swap");
     };
 
-    if (elements.mapImage.complete && elements.mapImage.naturalWidth) {
-      fitImage();
-      showHint();
-    }
+    preview.onerror = () => {
+      if (state.pendingMapId !== requestId) {
+        return;
+      }
 
-    void elements.mapImage.offsetWidth;
-    elements.mapImage.classList.add("swap");
+      trySource(sourceIndex + 1);
+    };
+
+    preview.src = nextSource;
   };
 
-  preview.onerror = () => {
-    if (state.pendingMapId !== requestId) {
-      return;
-    }
-
-    state.mapReady = false;
-    elements.mapImage.hidden = true;
-    elements.mapPlaceholder.hidden = false;
-    elements.hint.classList.add("gone");
-  };
-
-  preview.src = source;
+  trySource(0);
 }
 
 function renderMap(region) {
@@ -1508,22 +1527,35 @@ function renderMap(region) {
   }
 
   if (hasPdfSource && PDFJS_LIB?.getDocument) {
-    void renderRegionProjectPdfImage(region).then((pdfImage) => {
-      if (pdfImage) {
-        loadRenderedMapSource(region, pdfImage, requestId);
-        return;
+    void Promise.all([resolveRegionAtlasPreviewImageSource(region), renderRegionProjectPdfImage(region)]).then(
+      ([previewImageSource, pdfImage]) => {
+        loadRenderedMapSource(region, [previewImageSource, pdfImage, getRegionAtlasFallbackImageSource(region)], requestId);
       }
-
-      void resolveRegionAtlasPreviewImageSource(region).then((imageSource) => {
-        loadRenderedMapSource(region, imageSource, requestId);
-      });
-    });
+    );
     return;
   }
 
   void resolveRegionAtlasPreviewImageSource(region).then((imageSource) => {
-    loadRenderedMapSource(region, imageSource, requestId);
+    loadRenderedMapSource(region, [imageSource, getRegionAtlasFallbackImageSource(region)], requestId);
   });
+}
+
+function getRegionAtlasFallbackImageSource(region) {
+  return String(region?.atlasPreviewImage || "").trim();
+}
+
+async function resolveRegionAtlasPreviewImageSource(region) {
+  const archivedPreviewFile = await resolveRegionAtlasPreviewFile(region);
+
+  if (archivedPreviewFile) {
+    try {
+      return await fileToDataUrl(archivedPreviewFile);
+    } catch {
+      // Fall through to the next available source.
+    }
+  }
+
+  return String(region?.atlasPreviewPath || region?.map || "").trim();
 }
 
 function syncNavigation() {
@@ -2112,20 +2144,6 @@ async function resolveRegionAtlasPreviewFile(region) {
   } catch {
     return null;
   }
-}
-
-async function resolveRegionAtlasPreviewImageSource(region) {
-  const archivedPreviewFile = await resolveRegionAtlasPreviewFile(region);
-
-  if (archivedPreviewFile) {
-    try {
-      return await fileToDataUrl(archivedPreviewFile);
-    } catch {
-      // Fall through to the next available source.
-    }
-  }
-
-  return region?.atlasPreviewImage || region?.atlasPreviewPath || region?.map || "";
 }
 
 async function resolveRegionProjectPdfFile(region) {
