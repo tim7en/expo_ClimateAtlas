@@ -748,6 +748,26 @@ async function dataUrlToBlob(dataUrl) {
   return response.blob();
 }
 
+async function fileToDataUrl(file) {
+  if (!file) {
+    return "";
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(String(reader.result || ""));
+    };
+
+    reader.onerror = () => {
+      reject(reader.error || new Error("Could not read file."));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
 function getFileNameFromPath(path, fallback = "") {
   const normalizedPath = String(path || "").trim().split("?")[0].split("#")[0];
   const pathSegments = normalizedPath.split("/").filter(Boolean);
@@ -1479,21 +1499,31 @@ function renderMap(region) {
   elements.mapImage.removeAttribute("src");
   elements.mapImage.alt = "";
 
-  const fallbackSource = region.map || "";
+  const hasPdfSource = Boolean(region.projectPdfPath || state.moderatorPdfBytes.get(region.id));
+  const hasImageSource = Boolean(region.atlasPreviewImage || region.atlasPreviewPath || region.map);
 
-  if (!fallbackSource && !region.projectPdfPath) {
+  if (!hasImageSource && !hasPdfSource) {
     elements.hint.classList.add("gone");
     return;
   }
 
-  if ((region.projectPdfPath || state.moderatorPdfBytes.get(region.id)) && PDFJS_LIB?.getDocument) {
+  if (hasPdfSource && PDFJS_LIB?.getDocument) {
     void renderRegionProjectPdfImage(region).then((pdfImage) => {
-      loadRenderedMapSource(region, pdfImage || fallbackSource, requestId);
+      if (pdfImage) {
+        loadRenderedMapSource(region, pdfImage, requestId);
+        return;
+      }
+
+      void resolveRegionAtlasPreviewImageSource(region).then((imageSource) => {
+        loadRenderedMapSource(region, imageSource, requestId);
+      });
     });
     return;
   }
 
-  loadRenderedMapSource(region, fallbackSource, requestId);
+  void resolveRegionAtlasPreviewImageSource(region).then((imageSource) => {
+    loadRenderedMapSource(region, imageSource, requestId);
+  });
 }
 
 function syncNavigation() {
@@ -2056,6 +2086,46 @@ function getRegionProjectPdfFileName(region) {
     region?.projectPdfPath || "",
     buildProjectPdfFileName(region?.projectPdfName || region?.sourcePdf || region?.id || "region-source", region?.id || "region")
   );
+}
+
+function getRegionAtlasPreviewFileName(region) {
+  return getFileNameFromPath(
+    region?.atlasPreviewPath || "",
+    buildProjectPreviewFileName(region?.id || "plate", region?.atlasPreviewPage || 1)
+  );
+}
+
+async function resolveRegionAtlasPreviewFile(region) {
+  if (!region?.id) {
+    return null;
+  }
+
+  const archiveHandle = await getProjectArchiveDirectoryHandle(false);
+  if (!archiveHandle) {
+    return null;
+  }
+
+  try {
+    const packageHandle = await getProjectPlatePackageHandle(archiveHandle, region.id, region.atlasId || getActiveAtlasId());
+    const fileHandle = await packageHandle.getFileHandle(getRegionAtlasPreviewFileName(region));
+    return fileHandle.getFile();
+  } catch {
+    return null;
+  }
+}
+
+async function resolveRegionAtlasPreviewImageSource(region) {
+  const archivedPreviewFile = await resolveRegionAtlasPreviewFile(region);
+
+  if (archivedPreviewFile) {
+    try {
+      return await fileToDataUrl(archivedPreviewFile);
+    } catch {
+      // Fall through to the next available source.
+    }
+  }
+
+  return region?.atlasPreviewImage || region?.atlasPreviewPath || region?.map || "";
 }
 
 async function resolveRegionProjectPdfFile(region) {
@@ -2674,10 +2744,13 @@ async function integrateModeratorPdfIntoAtlas() {
     }
   }
 
-  if (!archiveHandle) {
+  const browserStoragePreviewImage = buildBrowserStorageAtlasPreview(canvas, atlasPreviewImage);
+
+  if (!archiveHandle || state.projectArchiveConnectionMode === PROJECT_ARCHIVE_CONNECTION_ATLAS_FOLDER) {
     nextDraft = {
       ...nextDraft,
-      atlasPreviewStorageImage: buildBrowserStorageAtlasPreview(canvas, atlasPreviewImage)
+      atlasPreviewImage: browserStoragePreviewImage || nextDraft.atlasPreviewImage || "",
+      atlasPreviewStorageImage: browserStoragePreviewImage
     };
   } else if (nextDraft.atlasPreviewStorageImage) {
     nextDraft = { ...nextDraft };
