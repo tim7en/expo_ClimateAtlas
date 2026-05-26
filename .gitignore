@@ -3,4 +3,5 @@ __pycache__/
 .venv/
 .pytest_cache/
 node_modules/
+.env
 Thumbs.db

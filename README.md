@@ -40,6 +40,8 @@ $env:ATLAS_AI_API_KEY = "your-key"
 python tools/serve_atlas.py --port 8010
 ```
 
+The local atlas server also auto-loads `.env` and accepts `OPENAI_API` or `OPENAI_API_KEY` as aliases for `ATLAS_AI_API_KEY`.
+
 Optional environment variables:
 
 1. `ATLAS_AI_MODEL` to override the default model name.

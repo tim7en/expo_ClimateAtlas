@@ -417,6 +417,7 @@ const state = {
   libraryAiAvatarMood: "",
   libraryAiAvatarTipIndex: 0,
   libraryAiAvatarReactionTimer: null,
+  libraryPendingExplainId: "",
   libraryPageTextCache: new Map(),
   reportThumbnailCache: new Map(),
   reportThumbnailPromises: new Map(),
@@ -547,6 +548,7 @@ const elements = {
   libraryAiStatus: document.querySelector("#library-ai-status"),
   libraryAiPlaceholder: document.querySelector("#library-ai-placeholder"),
   libraryAiText: document.querySelector("#library-ai-text"),
+  libraryNotes: document.querySelector("#library-notes"),
   libraryNote: document.querySelector("#library-note"),
   libraryNoteStatus: document.querySelector("#library-note-status"),
   moderatorBack: document.querySelector("#moderator-back"),
@@ -2624,6 +2626,17 @@ function renderClimateMapCard(sourceDocument, visibleIndex) {
   const noteTag = hasLibraryNote(sourceDocument.id)
     ? '<div class="card-draft-tag">Notes saved</div>'
     : "";
+  const aiTag = `
+    <div class="card-draft-tag climate-map-ai-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M12 4v3" stroke-linecap="round" />
+        <rect x="6.5" y="7.5" width="11" height="8.5" rx="3.5" />
+        <path d="M9.4 12h.01M14.6 12h.01" stroke-linecap="round" />
+        <path d="M10 15.2c.7.5 1.3.7 2 .7s1.3-.2 2-.7" stroke-linecap="round" />
+      </svg>
+      <span>AI rover on tap</span>
+    </div>
+  `;
 
   return `
     <button
@@ -2644,6 +2657,7 @@ function renderClimateMapCard(sourceDocument, visibleIndex) {
         <h4>${escapeHtml(sourceDocument.title)}</h4>
         <div class="ct">${escapeHtml(metaParts.join(" - ") || sourceDocument.collection)}</div>
         ${noteTag}
+        ${aiTag}
       </div>
     </button>
   `;
@@ -2717,7 +2731,7 @@ function buildClimateMaps() {
     }
 
     card.addEventListener("click", () => {
-      openLibraryDocument(card.dataset.documentId);
+      openLibraryDocument(card.dataset.documentId, { autoExplain: true });
     });
 
     queueReportThumbnail(card, getLibraryDocumentById(card.dataset.documentId));
@@ -3011,6 +3025,26 @@ function getSelectedLibraryAiCacheEntry(documentId = state.librarySelectedId, pa
   return state.libraryAiCache[getLibraryPageStorageKey(documentId, pageNumber)] || null;
 }
 
+function shouldShowLibraryNotes(sourceDocument = getLibraryDocumentById(state.librarySelectedId)) {
+  return Boolean(sourceDocument && !isClimateMapDocument(sourceDocument));
+}
+
+function syncLibraryNotesVisibility(sourceDocument = getLibraryDocumentById(state.librarySelectedId)) {
+  const showNotes = shouldShowLibraryNotes(sourceDocument);
+
+  if (elements.libraryNotes) {
+    elements.libraryNotes.hidden = !showNotes;
+  }
+
+  if (elements.libraryNoteStatus) {
+    elements.libraryNoteStatus.hidden = !showNotes;
+  }
+
+  if (elements.libraryAiCopy) {
+    elements.libraryAiCopy.hidden = !showNotes;
+  }
+}
+
 function formatLibraryAiDuration(milliseconds) {
   const totalSeconds = Math.max(0, Math.round((Number(milliseconds) || 0) / 1000));
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
@@ -3102,7 +3136,7 @@ function getLibraryAiAvatarLines(mood) {
     case "ready":
       return [
         "Fresh explanation delivered.",
-        "You can copy this note or drop it into page notes.",
+        "The current climate map now has a plain-English briefing.",
         "Regenerate if you want another pass on the same page."
       ];
     case "error":
@@ -3190,7 +3224,7 @@ function nudgeLibraryAiAvatar() {
 }
 
 function getDefaultLibraryAiPlaceholder() {
-  return "The explanation uses the current PDF page image together with extracted page text. It stays separate from your notes until you insert it.";
+  return "The explanation uses the current PDF page image together with extracted page text to create a short climate briefing.";
 }
 
 function setLibraryAiStatus(message, isAlert = false) {
@@ -3212,6 +3246,17 @@ function setLibraryAiText(text, placeholderMessage = getDefaultLibraryAiPlacehol
   elements.libraryAiText.textContent = hasText ? String(text).trim() : "";
   elements.libraryAiPlaceholder.textContent = placeholderMessage;
   elements.libraryAiPlaceholder.hidden = hasText;
+}
+
+function handleLibraryAiAvatarClick() {
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+
+  if (canExplainSelectedLibraryPage(sourceDocument) && isLibraryAiDocument(sourceDocument) && !state.libraryAiBusy) {
+    void explainSelectedLibraryPage();
+    return;
+  }
+
+  nudgeLibraryAiAvatar();
 }
 
 function isLibraryAiDocument(sourceDocument) {
@@ -3853,7 +3898,17 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage, retryCoun
     elements.libraryPdfEmpty.hidden = true;
     elements.libraryCanvasShell.hidden = false;
     syncSelectedLibraryNoteField(sourceDocument);
+    syncLibraryNotesVisibility(sourceDocument);
     updateLibraryPdfControls();
+
+    if (state.libraryPendingExplainId === sourceDocument.id) {
+      const hasCachedExplanation = Boolean(getSelectedLibraryAiCacheEntry(sourceDocument.id, pageNumber)?.text);
+      state.libraryPendingExplainId = "";
+
+      if (!hasCachedExplanation && canExplainSelectedLibraryPage(sourceDocument)) {
+        void explainSelectedLibraryPage();
+      }
+    }
   } catch (error) {
     if (error?.name === "RenderingCancelledException") {
       return;
@@ -3884,16 +3939,19 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage, retryCoun
 
 function renderLibraryDocument(sourceDocument, options = {}) {
   const loadPdf = options.loadPdf !== false;
+  const autoExplain = options.autoExplain === true;
 
   if (!sourceDocument) {
     abortLibraryAiRequest();
     state.librarySelectedId = "";
+    state.libraryPendingExplainId = "";
     elements.libraryDocKicker.textContent = "Source PDF";
     elements.libraryDocTitle.textContent = "Select a document";
     elements.libraryDocMeta.innerHTML = "";
     elements.libraryOpenPdf.href = "#";
     elements.libraryOpenPdf.setAttribute("aria-disabled", "true");
     syncSelectedLibraryNoteField(null);
+    syncLibraryNotesVisibility(null);
     clearLibraryPdfDocument();
     resetLibraryPdfCanvas();
     setLibraryPdfMessage("Select a document to preview.");
@@ -3904,6 +3962,7 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   }
 
   abortLibraryAiRequest();
+  state.libraryPendingExplainId = autoExplain && loadPdf ? sourceDocument.id : "";
   state.librarySelectedId = sourceDocument.id;
   state.libraryPage = 1;
   state.libraryZoom = 1;
@@ -3925,6 +3984,7 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   elements.libraryOpenPdf.href = documentPath || "#";
   elements.libraryOpenPdf.toggleAttribute("aria-disabled", !documentPath);
   syncSelectedLibraryNoteField(sourceDocument);
+  syncLibraryNotesVisibility(sourceDocument);
   syncLibraryListHighlight();
   syncContentsHighlight();
   syncClimateMapsHighlight();
@@ -3949,7 +4009,7 @@ function selectLibraryDocument(documentId) {
     return;
   }
 
-  renderLibraryDocument(sourceDocument, { loadPdf: state.currentScene === "library" });
+  renderLibraryDocument(sourceDocument, { loadPdf: state.currentScene === "library", autoExplain: false });
 }
 
 function persistSelectedLibraryNote() {
@@ -5242,9 +5302,10 @@ function openLibrary() {
   });
 }
 
-function openLibraryDocument(documentId) {
+function openLibraryDocument(documentId, options = {}) {
   flushLibraryNoteSave();
   const sourceDocument = getLibraryDocumentById(documentId);
+  const autoExplain = options.autoExplain === true;
 
   if (!sourceDocument) {
     return;
@@ -5265,7 +5326,7 @@ function openLibraryDocument(documentId) {
   showScene("library");
   populateLibraryCollectionOptions();
   buildLibraryList();
-  renderLibraryDocument(sourceDocument, { loadPdf: true });
+  renderLibraryDocument(sourceDocument, { loadPdf: true, autoExplain });
 }
 
 function closeLibrary() {
@@ -5622,7 +5683,7 @@ function wireEvents() {
   });
 
   elements.libraryAiCopy?.addEventListener("click", insertLibraryAiIntoNotes);
-  elements.libraryAiAvatar?.addEventListener("click", nudgeLibraryAiAvatar);
+  elements.libraryAiAvatar?.addEventListener("click", handleLibraryAiAvatarClick);
 
   elements.moderatorRegion.addEventListener("change", (event) => {
     populateModeratorForm(event.target.value);

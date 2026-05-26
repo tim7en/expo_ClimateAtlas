@@ -24,6 +24,50 @@ class AiConfig:
     timeout: float
 
 
+def load_dotenv_file(path: Path) -> None:
+    if not path.is_file():
+        return
+
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+
+    for raw_line in lines:
+        line = raw_line.strip()
+
+        if not line or line.startswith("#"):
+            continue
+
+        if line.lower().startswith("export "):
+            line = line[7:].strip()
+
+        if "=" not in line:
+            continue
+
+        name, value = line.split("=", 1)
+        name = name.strip()
+        value = value.strip()
+
+        if not name or name in os.environ:
+            continue
+
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+
+        os.environ[name] = value
+
+
+def read_text_env(*names: str, default: str = "") -> str:
+    for name in names:
+        value = os.getenv(name, "").strip()
+
+        if value:
+            return value
+
+    return default
+
+
 def read_float_env(name: str, default: float) -> float:
     raw_value = os.getenv(name, "").strip()
 
@@ -38,10 +82,10 @@ def read_float_env(name: str, default: float) -> float:
 
 def load_ai_config() -> AiConfig:
     return AiConfig(
-        api_key=os.getenv("ATLAS_AI_API_KEY", "").strip(),
-        base_url=os.getenv("ATLAS_AI_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
+        api_key=read_text_env("ATLAS_AI_API_KEY", "OPENAI_API_KEY", "OPENAI_API"),
+        base_url=read_text_env("ATLAS_AI_BASE_URL", "OPENAI_BASE_URL", default="https://api.openai.com/v1").rstrip("/"),
         chat_path=f"/{os.getenv('ATLAS_AI_CHAT_PATH', 'chat/completions').strip().lstrip('/')}",
-        model=os.getenv("ATLAS_AI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
+        model=read_text_env("ATLAS_AI_MODEL", "OPENAI_MODEL", default="gpt-4.1-mini") or "gpt-4.1-mini",
         timeout=read_float_env("ATLAS_AI_TIMEOUT", 60.0),
     )
 
@@ -272,7 +316,7 @@ class AtlasRequestHandler(SimpleHTTPRequestHandler):
         if not self.ai_config.api_key:
             self.send_json(
                 {
-                    "error": "ATLAS_AI_API_KEY is not set. Start the server with an API key to enable page explanations.",
+                    "error": "No AI API key is configured. Set ATLAS_AI_API_KEY, OPENAI_API_KEY, or OPENAI_API and restart the atlas server.",
                 },
                 status=HTTPStatus.SERVICE_UNAVAILABLE,
             )
@@ -365,6 +409,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    load_dotenv_file(ROOT / ".env")
     args = parse_args()
     ai_config = load_ai_config()
     server = AtlasServer((args.host, args.port), ai_config)
@@ -374,7 +419,7 @@ def main() -> None:
     if ai_config.api_key:
         print(f"AI explanations enabled with model {ai_config.model}.")
     else:
-        print("AI explanations are disabled. Set ATLAS_AI_API_KEY to enable /api/explain-page.")
+        print("AI explanations are disabled. Set ATLAS_AI_API_KEY, OPENAI_API_KEY, or OPENAI_API to enable /api/explain-page.")
 
     try:
         server.serve_forever()
