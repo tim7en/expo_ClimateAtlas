@@ -88,6 +88,8 @@ The current scaffold now ships as a scene-based album UI:
 1. A cover scene introduces the atlas.
 2. An album scene shows one climate plate at a time with page-turn navigation.
 3. A searchable contents scene lets users jump straight to a region.
+4. A source library scene indexes the uploaded `assets/source` PDFs for reports,
+   regional maps, thematic maps, and climate chapter pages.
 
 Core controls:
 
@@ -95,8 +97,31 @@ Core controls:
 2. Scroll, double-click, or use the zoom controls to zoom.
 3. Open **Map notes** for the climate and water summary plus glossary.
 4. Use the top-bar **Contents** button or press `C` to open the searchable plate grid.
-5. Use the cover-screen **Open moderator** button, the top-bar **Moderator** button, or press `M` to open the moderator workspace.
-6. Use the arrow keys to move between plates, `I` to toggle notes, `F` for fullscreen, and `Esc` to close overlays.
+5. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
+6. Use the cover-screen **Open moderator** button, the top-bar **Moderator** button, or press `M` to open the moderator workspace.
+7. Use the arrow keys to move between plates, `I` to toggle notes, `F` for fullscreen, and `Esc` to close overlays.
+
+## Source PDF library
+
+The library data is generated from the uploaded `assets/source` folder:
+
+```powershell
+python tools/build_source_library.py
+```
+
+This writes `js/source-library.js`, which the app loads before `js/app.js`.
+The library keeps report/map notes in browser local storage under
+`atlasSourceLibraryNotesV1`, so notes are available offline in the same browser
+profile.
+
+For inline PDF previews, serve the project over local HTTP:
+
+```powershell
+python -m http.server 8010 --bind 127.0.0.1
+```
+
+Then open `http://127.0.0.1:8010/`. The generated `dist/uzbekistan-atlas.html`
+also works from the repo when `assets/source` remains beside `dist`.
 
 ## Moderator workflow
 

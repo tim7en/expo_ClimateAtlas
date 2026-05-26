@@ -1,11 +1,16 @@
 const ATLAS_CONFIG = window.ATLAS_CONFIG || {};
 const MODERATOR_DRAFTS = Array.isArray(window.MODERATOR_DRAFTS) ? window.MODERATOR_DRAFTS : [];
+const SOURCE_LIBRARY = Array.isArray(window.SOURCE_LIBRARY) ? window.SOURCE_LIBRARY : [];
 const PDFJS_LIB = window.pdfjsLib || null;
 const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV2";
 const LEGACY_MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
+const SOURCE_LIBRARY_NOTES_KEY = "atlasSourceLibraryNotesV1";
 const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator !== false;
 const USE_BROWSER_DRAFTS = ATLAS_CONFIG.useBrowserDrafts !== false;
 const MODERATOR_PDF_PREVIEW_MAX_SCALE = 2.25;
+const SOURCE_LIBRARY_PREVIEW_MAX_SCALE = 3;
+const SOURCE_LIBRARY_MIN_ZOOM = 0.55;
+const SOURCE_LIBRARY_MAX_ZOOM = 3.2;
 const MODERATOR_ATLAS_RENDER_MAX_SCALE = 4;
 const MODERATOR_ATLAS_RENDER_MAX_WIDTH = 2200;
 const MODERATOR_ATLAS_RENDER_MAX_HEIGHT = 3000;
@@ -203,6 +208,53 @@ const ATLAS_COLLECTIONS = (() => {
   return legacyAtlas.regions.length ? [legacyAtlas] : [];
 })();
 
+function normalizeSourceDocument(rawDocument) {
+  if (!rawDocument || typeof rawDocument !== "object") {
+    return null;
+  }
+
+  const id = String(rawDocument.id || rawDocument.path || "").trim();
+  const path = String(rawDocument.path || "").trim();
+  const title = String(rawDocument.title || rawDocument.fileName || id).trim();
+
+  if (!id || !path || !title) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    path,
+    fileName: String(rawDocument.fileName || "").trim(),
+    folder: String(rawDocument.folder || "").trim(),
+    category: String(rawDocument.category || "document").trim(),
+    categoryLabel: String(rawDocument.categoryLabel || "Document").trim(),
+    collection: String(rawDocument.collection || "Source library").trim(),
+    collectionId: String(rawDocument.collectionId || rawDocument.category || "documents").trim(),
+    sizeLabel: String(rawDocument.sizeLabel || "").trim(),
+    year: String(rawDocument.year || "").trim(),
+    partner: String(rawDocument.partner || "").trim(),
+    prefix: String(rawDocument.prefix || "").trim(),
+    topics: Array.isArray(rawDocument.topics) ? rawDocument.topics.map(String).filter(Boolean) : [],
+    keywords: Array.isArray(rawDocument.keywords) ? rawDocument.keywords.map(String).filter(Boolean) : [],
+    order: Number.isFinite(Number(rawDocument.order)) ? Number(rawDocument.order) : 99999
+  };
+}
+
+const SOURCE_DOCUMENTS = SOURCE_LIBRARY.map(normalizeSourceDocument)
+  .filter(Boolean)
+  .sort((left, right) => {
+    if (left.collectionId === right.collectionId) {
+      return left.order - right.order || left.title.localeCompare(right.title);
+    }
+
+    const collectionOrder = ["reports", "regional-maps", "thematic-maps", "drivers-of-change", "climate-chapter", "source-atlases"];
+    const leftOrder = collectionOrder.indexOf(left.collectionId);
+    const rightOrder = collectionOrder.indexOf(right.collectionId);
+
+    return (leftOrder === -1 ? 999 : leftOrder) - (rightOrder === -1 ? 999 : rightOrder);
+  });
+
 let activeAtlas = null;
 let BASE_REGIONS = [];
 let BASE_INDEX_BY_ID = new Map();
@@ -305,6 +357,19 @@ const state = {
   currentScene: "cover",
   returnScene: "cover",
   query: "",
+  libraryQuery: "",
+  libraryCollection: "all",
+  librarySelectedId: "",
+  libraryNotes: loadSourceLibraryNotes(),
+  libraryPdfDocumentId: "",
+  libraryPdfLoadingTask: null,
+  libraryPdfDocument: null,
+  libraryPage: 1,
+  libraryPageCount: 0,
+  libraryZoom: 1,
+  libraryRenderTask: null,
+  libraryRenderToken: 0,
+  libraryNoteSaveTimer: null,
   animating: false,
   hintDismissed: false,
   mapReady: false,
@@ -339,6 +404,7 @@ const elements = {
   cover: document.querySelector("#cover"),
   album: document.querySelector("#album"),
   contents: document.querySelector("#contents"),
+  library: document.querySelector("#library"),
   moderator: document.querySelector("#moderator"),
   metricPlates: document.querySelector("#metric-plates"),
   metricPlatesLabel: document.querySelector("#metric-plates-label"),
@@ -347,8 +413,10 @@ const elements = {
   metricSea: document.querySelector("#metric-sea"),
   metricSeaLabel: document.querySelector("#metric-sea-label"),
   btnBegin: document.querySelector("#btnBegin"),
+  btnOpenLibrary: document.querySelector("#btnOpenLibrary"),
   btnOpenModerator: document.querySelector("#btnOpenModerator"),
   btnContents: document.querySelector("#btnContents"),
+  btnLibrary: document.querySelector("#btnLibrary"),
   btnModerator: document.querySelector("#btnModerator"),
   btnFull: document.querySelector("#btnFull"),
   fullLabel: document.querySelector("#full-label"),
@@ -389,6 +457,28 @@ const elements = {
   contentsCount: document.querySelector("#contents-count"),
   contentsGrid: document.querySelector("#cgrid"),
   cClose: document.querySelector("#cClose"),
+  libraryClose: document.querySelector("#library-close"),
+  libraryStats: document.querySelector("#library-stats"),
+  librarySearch: document.querySelector("#library-search"),
+  libraryCategory: document.querySelector("#library-category"),
+  libraryCount: document.querySelector("#library-count"),
+  libraryList: document.querySelector("#library-list"),
+  libraryDocKicker: document.querySelector("#library-doc-kicker"),
+  libraryDocTitle: document.querySelector("#library-doc-title"),
+  libraryDocMeta: document.querySelector("#library-doc-meta"),
+  libraryOpenPdf: document.querySelector("#library-open-pdf"),
+  libraryPdfStage: document.querySelector("#library-pdf-stage"),
+  libraryPdfEmpty: document.querySelector("#library-pdf-empty"),
+  libraryCanvasShell: document.querySelector("#library-canvas-shell"),
+  libraryCanvas: document.querySelector("#library-canvas"),
+  libraryPage: document.querySelector("#library-page"),
+  libraryPrev: document.querySelector("#library-prev"),
+  libraryNext: document.querySelector("#library-next"),
+  libraryZoomOut: document.querySelector("#library-zoom-out"),
+  libraryZoomIn: document.querySelector("#library-zoom-in"),
+  libraryZoomFit: document.querySelector("#library-zoom-fit"),
+  libraryNote: document.querySelector("#library-note"),
+  libraryNoteStatus: document.querySelector("#library-note-status"),
   moderatorBack: document.querySelector("#moderator-back"),
   moderatorForm: document.querySelector("#moderator-form"),
   moderatorAddPlate: document.querySelector("#moderator-add-plate"),
@@ -630,6 +720,27 @@ function persistDrafts() {
   const nextPayload = Array.isArray(payload) ? {} : { ...payload };
   nextPayload[getActiveAtlasId()] = serializeDraftMap(state.moderatorDrafts);
   window.localStorage.setItem(MODERATOR_STORAGE_KEY, JSON.stringify(nextPayload));
+}
+
+function loadSourceLibraryNotes() {
+  try {
+    const raw = window.localStorage.getItem(SOURCE_LIBRARY_NOTES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistSourceLibraryNotes() {
+  try {
+    window.localStorage.setItem(SOURCE_LIBRARY_NOTES_KEY, JSON.stringify(state.libraryNotes));
+  } catch {
+    if (elements.libraryNoteStatus) {
+      elements.libraryNoteStatus.textContent = "Notes could not be saved in this browser.";
+      elements.libraryNoteStatus.classList.add("is-alert");
+    }
+  }
 }
 
 function slugifyProjectPdfName(value) {
@@ -1427,13 +1538,14 @@ function showScene(sceneName) {
     sceneName = state.started ? "album" : "cover";
   }
 
-  if (!REGIONS.length && sceneName !== "cover" && sceneName !== "contents") {
+  if (!REGIONS.length && sceneName !== "cover" && sceneName !== "contents" && sceneName !== "library") {
     sceneName = "cover";
   }
 
   elements.cover.hidden = sceneName !== "cover";
   elements.album.hidden = sceneName !== "album";
   elements.contents.hidden = sceneName !== "contents";
+  elements.library.hidden = sceneName !== "library";
   elements.moderator.hidden = !MODERATOR_ENABLED || sceneName !== "moderator";
   state.currentScene = sceneName;
 }
@@ -1449,6 +1561,18 @@ function syncModeratorAvailability() {
 
   if (elements.moderator) {
     elements.moderator.hidden = true;
+  }
+}
+
+function syncLibraryAvailability() {
+  const hasDocuments = SOURCE_DOCUMENTS.length > 0;
+
+  if (elements.btnLibrary) {
+    elements.btnLibrary.disabled = !hasDocuments;
+  }
+
+  if (elements.btnOpenLibrary) {
+    elements.btnOpenLibrary.disabled = !hasDocuments;
   }
 }
 
@@ -2215,6 +2339,471 @@ function buildContents() {
 
     syncContentsCardThumbnail(card, getEffectiveRegion(card.dataset.regionId) || REGIONS[Number(card.dataset.index)]);
   });
+}
+
+function getLibraryCountLabel(count) {
+  return `${count} document${count === 1 ? "" : "s"} visible`;
+}
+
+function getLibraryCollectionOptions() {
+  const options = [
+    { id: "all", label: "All documents" },
+    { id: "report", label: "Reports" },
+    { id: "map", label: "Maps" }
+  ];
+  const seen = new Set(options.map((option) => option.id));
+
+  SOURCE_DOCUMENTS.forEach((sourceDocument) => {
+    if (!sourceDocument.collectionId || seen.has(sourceDocument.collectionId)) {
+      return;
+    }
+
+    seen.add(sourceDocument.collectionId);
+    options.push({
+      id: sourceDocument.collectionId,
+      label: sourceDocument.collection
+    });
+  });
+
+  return options;
+}
+
+function populateLibraryCollectionOptions() {
+  if (!elements.libraryCategory) {
+    return;
+  }
+
+  elements.libraryCategory.innerHTML = getLibraryCollectionOptions()
+    .map((option) => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  elements.libraryCategory.value = state.libraryCollection;
+}
+
+function getLibraryDocumentById(documentId) {
+  return SOURCE_DOCUMENTS.find((sourceDocument) => sourceDocument.id === documentId) || null;
+}
+
+function getLibraryNote(documentId) {
+  return String(state.libraryNotes?.[documentId] || "");
+}
+
+function hasLibraryNote(documentId) {
+  return getLibraryNote(documentId).trim().length > 0;
+}
+
+function getVisibleLibraryDocuments() {
+  const query = state.libraryQuery.trim().toLowerCase();
+  const collection = state.libraryCollection;
+
+  return SOURCE_DOCUMENTS.filter((sourceDocument) => {
+    const matchesCollection =
+      collection === "all" ||
+      sourceDocument.category === collection ||
+      sourceDocument.collectionId === collection;
+
+    if (!matchesCollection) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    const haystack = [
+      sourceDocument.title,
+      sourceDocument.fileName,
+      sourceDocument.folder,
+      sourceDocument.categoryLabel,
+      sourceDocument.collection,
+      sourceDocument.year,
+      sourceDocument.partner,
+      sourceDocument.path,
+      getLibraryNote(sourceDocument.id),
+      ...(sourceDocument.topics || []),
+      ...(sourceDocument.keywords || [])
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+}
+
+function buildLibraryList() {
+  if (!elements.libraryList) {
+    return;
+  }
+
+  const visibleDocuments = getVisibleLibraryDocuments();
+
+  if (elements.libraryStats) {
+    const reportCount = SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "report").length;
+    const mapCount = SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "map").length;
+    elements.libraryStats.textContent = `${SOURCE_DOCUMENTS.length} source PDFs indexed · ${reportCount} reports · ${mapCount} maps`;
+  }
+
+  elements.libraryCount.textContent = getLibraryCountLabel(visibleDocuments.length);
+
+  if (!visibleDocuments.length) {
+    elements.libraryList.innerHTML = `
+      <div class="empty-contents">
+        No source documents match this filter.
+      </div>
+    `;
+    return;
+  }
+
+  if (state.librarySelectedId && !visibleDocuments.some((sourceDocument) => sourceDocument.id === state.librarySelectedId)) {
+    state.librarySelectedId = "";
+    renderLibraryDocument(null, { loadPdf: false });
+  }
+
+  elements.libraryList.innerHTML = visibleDocuments
+    .map((sourceDocument, visibleIndex) => {
+      const activeClass = sourceDocument.id === state.librarySelectedId ? " is-active" : "";
+      const noteClass = hasLibraryNote(sourceDocument.id) ? " has-note" : "";
+      const metaParts = [
+        sourceDocument.categoryLabel,
+        sourceDocument.year,
+        sourceDocument.sizeLabel
+      ].filter(Boolean);
+      const topics = (sourceDocument.topics || []).slice(0, 3).join(" · ");
+
+      return `
+        <button
+          class="library-card${activeClass}${noteClass}"
+          type="button"
+          data-document-id="${escapeHtml(sourceDocument.id)}"
+          style="animation-delay:${Math.min(visibleIndex, 18) * 24}ms"
+        >
+          <div class="library-card-title">${escapeHtml(sourceDocument.title)}</div>
+          <div class="library-card-meta">${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}</div>
+          <div class="library-card-topic">${escapeHtml(topics || sourceDocument.collection)}</div>
+        </button>
+      `;
+    })
+    .join("");
+
+  Array.from(elements.libraryList.querySelectorAll("[data-document-id]")).forEach((button) => {
+    button.addEventListener("click", () => {
+      selectLibraryDocument(button.dataset.documentId);
+    });
+  });
+}
+
+function syncLibraryListHighlight() {
+  if (!elements.libraryList) {
+    return;
+  }
+
+  Array.from(elements.libraryList.querySelectorAll("[data-document-id]")).forEach((card) => {
+    const documentId = card.dataset.documentId;
+    card.classList.toggle("is-active", documentId === state.librarySelectedId);
+    card.classList.toggle("has-note", hasLibraryNote(documentId));
+  });
+}
+
+function resolveSourceDocumentPath(path) {
+  const rawPath = String(path || "").trim();
+
+  if (!rawPath || /^(?:data:|blob:|https?:|file:)/i.test(rawPath)) {
+    return rawPath;
+  }
+
+  const isBuiltFromDist = /\/dist(?:\/|$)/.test(window.location.pathname);
+  if (isBuiltFromDist && rawPath.startsWith("assets/")) {
+    return `../${rawPath}`;
+  }
+
+  return rawPath;
+}
+
+function resolveSourceDocumentUrl(path) {
+  const resolvedPath = resolveSourceDocumentPath(path);
+
+  try {
+    return new URL(resolvedPath, window.location.href).href;
+  } catch {
+    return resolvedPath;
+  }
+}
+
+function cancelLibraryRenderTask() {
+  if (state.libraryRenderTask?.cancel) {
+    try {
+      state.libraryRenderTask.cancel();
+    } catch {
+      // PDF.js may already have completed the task.
+    }
+  }
+
+  state.libraryRenderTask = null;
+}
+
+function clearLibraryPdfDocument() {
+  cancelLibraryRenderTask();
+
+  if (state.libraryPdfLoadingTask?.destroy) {
+    try {
+      state.libraryPdfLoadingTask.destroy();
+    } catch {
+      // A pending worker cleanup should not block the UI reset.
+    }
+  }
+
+  state.libraryPdfDocumentId = "";
+  state.libraryPdfLoadingTask = null;
+  state.libraryPdfDocument = null;
+  state.libraryPage = 1;
+  state.libraryPageCount = 0;
+}
+
+function resetLibraryPdfCanvas() {
+  cancelLibraryRenderTask();
+  state.libraryRenderToken += 1;
+
+  if (elements.libraryCanvas) {
+    const context = elements.libraryCanvas.getContext("2d");
+    if (context) {
+      context.clearRect(0, 0, elements.libraryCanvas.width, elements.libraryCanvas.height);
+    }
+
+    elements.libraryCanvas.width = 0;
+    elements.libraryCanvas.height = 0;
+    elements.libraryCanvas.style.width = "0";
+    elements.libraryCanvas.style.height = "0";
+  }
+
+  if (elements.libraryCanvasShell) {
+    elements.libraryCanvasShell.hidden = true;
+  }
+}
+
+function setLibraryPdfMessage(message, isAlert = false) {
+  if (!elements.libraryPdfEmpty) {
+    return;
+  }
+
+  elements.libraryPdfEmpty.hidden = false;
+  elements.libraryPdfEmpty.textContent = message;
+  elements.libraryPdfEmpty.classList.toggle("is-alert", Boolean(isAlert));
+}
+
+function updateLibraryPdfControls() {
+  if (!elements.libraryPage) {
+    return;
+  }
+
+  const hasDocument = Boolean(state.libraryPdfDocument);
+  elements.libraryPage.textContent = hasDocument
+    ? `Page ${state.libraryPage} of ${state.libraryPageCount} · ${Math.round(state.libraryZoom * 100)}%`
+    : "Page -- of --";
+  elements.libraryPrev.disabled = !hasDocument || state.libraryPage <= 1;
+  elements.libraryNext.disabled = !hasDocument || state.libraryPage >= state.libraryPageCount;
+  elements.libraryZoomOut.disabled = !hasDocument || state.libraryZoom <= SOURCE_LIBRARY_MIN_ZOOM;
+  elements.libraryZoomIn.disabled = !hasDocument || state.libraryZoom >= SOURCE_LIBRARY_MAX_ZOOM;
+  elements.libraryZoomFit.disabled = !hasDocument || state.libraryZoom === 1;
+}
+
+async function ensureLibraryPdfDocument(sourceDocument) {
+  if (!sourceDocument) {
+    return null;
+  }
+
+  if (state.libraryPdfDocumentId === sourceDocument.id && state.libraryPdfDocument) {
+    return state.libraryPdfDocument;
+  }
+
+  clearLibraryPdfDocument();
+
+  if (!PDFJS_LIB?.getDocument) {
+    setLibraryPdfMessage("PDF preview is unavailable until the local PDF.js dependency is installed.", true);
+    updateLibraryPdfControls();
+    return null;
+  }
+
+  const loadingTask = PDFJS_LIB.getDocument({ url: resolveSourceDocumentUrl(sourceDocument.path) });
+  state.libraryPdfDocumentId = sourceDocument.id;
+  state.libraryPdfLoadingTask = loadingTask;
+
+  const pdfDocument = await loadingTask.promise;
+  if (state.libraryPdfLoadingTask !== loadingTask || state.librarySelectedId !== sourceDocument.id) {
+    if (pdfDocument?.destroy) {
+      pdfDocument.destroy();
+    }
+    return null;
+  }
+
+  state.libraryPdfDocument = pdfDocument;
+  state.libraryPageCount = pdfDocument.numPages || 1;
+  state.libraryPage = Math.max(1, Math.min(state.libraryPage, state.libraryPageCount));
+  return pdfDocument;
+}
+
+async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+
+  if (!sourceDocument) {
+    resetLibraryPdfCanvas();
+    setLibraryPdfMessage("Select a document to preview.");
+    updateLibraryPdfControls();
+    return;
+  }
+
+  resetLibraryPdfCanvas();
+  const renderToken = ++state.libraryRenderToken;
+  setLibraryPdfMessage(`Loading ${sourceDocument.fileName || sourceDocument.title}...`);
+  updateLibraryPdfControls();
+
+  try {
+    const pdfDocument = await ensureLibraryPdfDocument(sourceDocument);
+    if (!pdfDocument || renderToken !== state.libraryRenderToken) {
+      return;
+    }
+
+    const pageNumber = Math.max(1, Math.min(requestedPage, pdfDocument.numPages || 1));
+    const page = await pdfDocument.getPage(pageNumber);
+    if (renderToken !== state.libraryRenderToken) {
+      return;
+    }
+
+    const baseViewport = page.getViewport({ scale: 1 });
+    const stageWidth = Math.max(320, (elements.libraryPdfStage?.clientWidth || 720) - 56);
+    const fitScale = Math.min(SOURCE_LIBRARY_PREVIEW_MAX_SCALE, stageWidth / baseViewport.width);
+    const scale = Math.max(0.2, Math.min(SOURCE_LIBRARY_PREVIEW_MAX_SCALE, fitScale * state.libraryZoom));
+    const viewport = page.getViewport({ scale });
+    const outputScale = window.devicePixelRatio || 1;
+    const canvas = elements.libraryCanvas;
+    const context = canvas.getContext("2d", { alpha: false });
+
+    canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+    canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+    if (context) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    state.libraryRenderTask = page.render({
+      canvasContext: context,
+      viewport,
+      transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+    });
+
+    await state.libraryRenderTask.promise;
+    state.libraryRenderTask = null;
+
+    if (renderToken !== state.libraryRenderToken) {
+      return;
+    }
+
+    state.libraryPage = pageNumber;
+    state.libraryPageCount = pdfDocument.numPages || 1;
+    elements.libraryPdfEmpty.hidden = true;
+    elements.libraryCanvasShell.hidden = false;
+    updateLibraryPdfControls();
+  } catch (error) {
+    if (error?.name === "RenderingCancelledException") {
+      return;
+    }
+
+    if (renderToken !== state.libraryRenderToken) {
+      return;
+    }
+
+    resetLibraryPdfCanvas();
+    setLibraryPdfMessage(`Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file.`, true);
+    updateLibraryPdfControls();
+  }
+}
+
+function renderLibraryDocument(sourceDocument, options = {}) {
+  const loadPdf = options.loadPdf !== false;
+
+  if (!sourceDocument) {
+    state.librarySelectedId = "";
+    elements.libraryDocKicker.textContent = "Source PDF";
+    elements.libraryDocTitle.textContent = "Select a document";
+    elements.libraryDocMeta.innerHTML = "";
+    elements.libraryOpenPdf.href = "#";
+    elements.libraryOpenPdf.setAttribute("aria-disabled", "true");
+    elements.libraryNote.value = "";
+    elements.libraryNoteStatus.textContent = "";
+    clearLibraryPdfDocument();
+    resetLibraryPdfCanvas();
+    setLibraryPdfMessage("Select a document to preview.");
+    updateLibraryPdfControls();
+    syncLibraryListHighlight();
+    return;
+  }
+
+  state.librarySelectedId = sourceDocument.id;
+  state.libraryPage = 1;
+  state.libraryZoom = 1;
+
+  elements.libraryDocKicker.textContent = `${sourceDocument.categoryLabel} · ${sourceDocument.collection}`;
+  elements.libraryDocTitle.textContent = sourceDocument.title;
+  elements.libraryDocMeta.innerHTML = [
+    sourceDocument.year,
+    sourceDocument.partner,
+    sourceDocument.sizeLabel,
+    sourceDocument.folder
+  ]
+    .filter(Boolean)
+    .map((item) => `<span>${escapeHtml(item)}</span>`)
+    .join("");
+
+  const documentPath = resolveSourceDocumentPath(sourceDocument.path);
+  elements.libraryOpenPdf.href = documentPath || "#";
+  elements.libraryOpenPdf.toggleAttribute("aria-disabled", !documentPath);
+  elements.libraryNote.value = getLibraryNote(sourceDocument.id);
+  elements.libraryNoteStatus.textContent = hasLibraryNote(sourceDocument.id) ? "Notes saved." : "";
+  elements.libraryNoteStatus.classList.remove("is-alert");
+  syncLibraryListHighlight();
+  clearLibraryPdfDocument();
+
+  if (loadPdf) {
+    void renderLibraryPdfPage(1);
+  } else {
+    resetLibraryPdfCanvas();
+    setLibraryPdfMessage("Select a document to preview.");
+    updateLibraryPdfControls();
+  }
+}
+
+function selectLibraryDocument(documentId) {
+  const sourceDocument = getLibraryDocumentById(documentId);
+
+  if (!sourceDocument) {
+    return;
+  }
+
+  renderLibraryDocument(sourceDocument, { loadPdf: state.currentScene === "library" });
+}
+
+function persistSelectedLibraryNote() {
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+
+  if (!sourceDocument) {
+    return;
+  }
+
+  const note = elements.libraryNote.value.trim();
+
+  if (note) {
+    state.libraryNotes[sourceDocument.id] = note;
+  } else {
+    delete state.libraryNotes[sourceDocument.id];
+  }
+
+  persistSourceLibraryNotes();
+  elements.libraryNoteStatus.textContent = note ? "Notes saved." : "";
+  elements.libraryNoteStatus.classList.remove("is-alert");
+  syncLibraryListHighlight();
 }
 
 function getDefaultDraftValues(regionId) {
@@ -3430,6 +4019,35 @@ function closeContents() {
   }
 }
 
+function openLibrary() {
+  if (!SOURCE_DOCUMENTS.length) {
+    return;
+  }
+
+  if (state.currentScene !== "library") {
+    state.returnScene = state.currentScene;
+  }
+
+  showScene("library");
+  populateLibraryCollectionOptions();
+  buildLibraryList();
+
+  renderLibraryDocument(getLibraryDocumentById(state.librarySelectedId), { loadPdf: false });
+
+  window.requestAnimationFrame(() => {
+    elements.librarySearch?.focus();
+  });
+}
+
+function closeLibrary() {
+  const nextScene = state.returnScene || (state.started ? "album" : "cover");
+  showScene(nextScene);
+
+  if (state.currentScene === "album") {
+    fitImage();
+  }
+}
+
 function openModerator(regionId = state.moderatorRegionId || REGIONS[0]?.id || "") {
   if (!MODERATOR_ENABLED || !REGIONS.length) {
     return;
@@ -3612,6 +4230,9 @@ function wireEvents() {
   }
 
   elements.btnBegin.addEventListener("click", beginAtlas);
+  if (elements.btnOpenLibrary) {
+    elements.btnOpenLibrary.addEventListener("click", openLibrary);
+  }
   if (elements.btnOpenModerator) {
     elements.btnOpenModerator.addEventListener("click", () => {
       openModerator(state.moderatorRegionId || REGIONS[state.index]?.id || REGIONS[0]?.id || "");
@@ -3624,6 +4245,14 @@ function wireEvents() {
     }
 
     openContents();
+  });
+  elements.btnLibrary.addEventListener("click", () => {
+    if (state.currentScene === "library") {
+      closeLibrary();
+      return;
+    }
+
+    openLibrary();
   });
   elements.btnModerator.addEventListener("click", () => {
     if (!MODERATOR_ENABLED) {
@@ -3638,6 +4267,7 @@ function wireEvents() {
     openModerator(state.moderatorRegionId || REGIONS[state.index]?.id || REGIONS[0]?.id || "");
   });
   elements.cClose.addEventListener("click", closeContents);
+  elements.libraryClose.addEventListener("click", closeLibrary);
   elements.moderatorBack.addEventListener("click", closeModerator);
   elements.btnFull.addEventListener("click", toggleFullscreen);
   elements.btnNotes.addEventListener("click", openDrawer);
@@ -3666,6 +4296,60 @@ function wireEvents() {
         jumpToIndex(INDEX_BY_ID.get(visibleRegions[0].id));
       }
     }
+  });
+
+  elements.librarySearch.addEventListener("input", (event) => {
+    state.libraryQuery = event.target.value;
+    buildLibraryList();
+  });
+
+  elements.librarySearch.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const visibleDocuments = getVisibleLibraryDocuments();
+
+      if (visibleDocuments.length === 1) {
+        selectLibraryDocument(visibleDocuments[0].id);
+      }
+    }
+  });
+
+  elements.libraryCategory.addEventListener("change", (event) => {
+    state.libraryCollection = event.target.value;
+    buildLibraryList();
+  });
+
+  elements.libraryPrev.addEventListener("click", () => {
+    if (state.libraryPage > 1) {
+      void renderLibraryPdfPage(state.libraryPage - 1);
+    }
+  });
+
+  elements.libraryNext.addEventListener("click", () => {
+    if (state.libraryPage < state.libraryPageCount) {
+      void renderLibraryPdfPage(state.libraryPage + 1);
+    }
+  });
+
+  elements.libraryZoomOut.addEventListener("click", () => {
+    state.libraryZoom = Math.max(SOURCE_LIBRARY_MIN_ZOOM, Number((state.libraryZoom / 1.2).toFixed(2)));
+    void renderLibraryPdfPage(state.libraryPage);
+  });
+
+  elements.libraryZoomIn.addEventListener("click", () => {
+    state.libraryZoom = Math.min(SOURCE_LIBRARY_MAX_ZOOM, Number((state.libraryZoom * 1.2).toFixed(2)));
+    void renderLibraryPdfPage(state.libraryPage);
+  });
+
+  elements.libraryZoomFit.addEventListener("click", () => {
+    state.libraryZoom = 1;
+    void renderLibraryPdfPage(state.libraryPage);
+  });
+
+  elements.libraryNote.addEventListener("input", () => {
+    window.clearTimeout(state.libraryNoteSaveTimer);
+    elements.libraryNoteStatus.textContent = "Saving notes...";
+    elements.libraryNoteStatus.classList.remove("is-alert");
+    state.libraryNoteSaveTimer = window.setTimeout(persistSelectedLibraryNote, 250);
   });
 
   elements.moderatorRegion.addEventListener("change", (event) => {
@@ -3895,6 +4579,13 @@ function wireEvents() {
         event.preventDefault();
       }
 
+      if (event.key === "Escape" && state.currentScene === "library" && state.libraryQuery) {
+        state.libraryQuery = "";
+        elements.librarySearch.value = "";
+        buildLibraryList();
+        event.preventDefault();
+      }
+
       return;
     }
 
@@ -3906,6 +4597,8 @@ function wireEvents() {
 
       if (event.key.toLowerCase() === "c") {
         openContents();
+      } else if (event.key.toLowerCase() === "l") {
+        openLibrary();
       } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
         openModerator();
       }
@@ -3916,8 +4609,26 @@ function wireEvents() {
     if (state.currentScene === "contents") {
       if (event.key === "Escape") {
         closeContents();
+      } else if (event.key.toLowerCase() === "l") {
+        openLibrary();
       } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
         openModerator();
+      }
+
+      return;
+    }
+
+    if (state.currentScene === "library") {
+      if (event.key === "Escape") {
+        closeLibrary();
+      } else if (event.key === "ArrowLeft") {
+        if (state.libraryPage > 1) {
+          void renderLibraryPdfPage(state.libraryPage - 1);
+        }
+      } else if (event.key === "ArrowRight") {
+        if (state.libraryPage < state.libraryPageCount) {
+          void renderLibraryPdfPage(state.libraryPage + 1);
+        }
       }
 
       return;
@@ -3949,6 +4660,8 @@ function wireEvents() {
       }
     } else if (event.key.toLowerCase() === "c") {
       openContents();
+    } else if (event.key.toLowerCase() === "l") {
+      openLibrary();
     } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
       openModerator();
     } else if (event.key.toLowerCase() === "f") {
@@ -3964,7 +4677,11 @@ if (ATLAS_COLLECTIONS.length) {
   populateAtlasOptions();
   updateOverview();
   syncModeratorAvailability();
+  syncLibraryAvailability();
   syncModeratorPreviewHint();
+  populateLibraryCollectionOptions();
+  buildLibraryList();
+  renderLibraryDocument(getLibraryDocumentById(state.librarySelectedId), { loadPdf: false });
 
   if (REGIONS.length) {
     setTheme(getEffectiveRegion(REGIONS[0]) || REGIONS[0]);
