@@ -51,6 +51,15 @@
           <span class="lbl">Library</span>
         </button>
 
+        <button class="tbtn" id="btnClimateMaps" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6.5 9 4l6 2.5 6-2.5v13.5L15 20l-6-2.5L3 20V6.5Z" />
+            <path d="M9 4v13.5M15 6.5V20" />
+            <path d="M7 11h4M13 13h4" stroke-linecap="round" />
+          </svg>
+          <span class="lbl">Climate Maps</span>
+        </button>
+
         <button class="tbtn" id="btnModerator" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3 4 7v6c0 5 3.4 7.8 8 8 4.6-0.2 8-3 8-8V7l-8-4Z" />
@@ -113,6 +122,14 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                   <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
+                </svg>
+              </button>
+
+              <button class="begin begin-secondary" id="btnOpenClimateMaps" type="button">
+                Climate maps
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M3 6.5 9 4l6 2.5 6-2.5v13.5L15 20l-6-2.5L3 20V6.5Z" />
+                  <path d="M9 4v13.5M15 6.5V20" />
                 </svg>
               </button>
 
@@ -285,6 +302,45 @@
           </div>
 
           <div class="cgrid" id="cgrid"></div>
+        </section>
+
+        <section class="scene climate-maps" id="climate-maps" hidden>
+          <button class="cclose" id="climate-maps-close" type="button" aria-label="Close climate maps">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+
+          <div class="library-shell climate-maps-shell">
+            <div class="library-head">
+              <p class="csub">Curated visual climate panel</p>
+              <h2>Climate Change Maps</h2>
+              <p class="library-stats" id="climate-maps-stats">Climate visuals indexed</p>
+              <p class="climate-map-description">
+                A focused set of visual maps covering observed trends, projected
+                change, climate water deficit, precipitation, temperature, snow
+                cover, solar radiation, growing seasons, and meteorological
+                conditions for Uzbekistan.
+              </p>
+            </div>
+
+            <div class="contents-tools climate-map-tools">
+              <label class="search-field" for="climate-maps-search">
+                <span>Filter climate maps by key names</span>
+                <input
+                  id="climate-maps-search"
+                  name="climate-maps-search"
+                  type="search"
+                  autocomplete="off"
+                  placeholder="Search temperature, precipitation, water deficit, snow, solar"
+                />
+              </label>
+
+              <p class="result-pill" id="climate-maps-count">Climate maps visible</p>
+            </div>
+
+            <div class="climate-map-groups" id="climate-maps-grid"></div>
+          </div>
         </section>
 
         <section class="scene library" id="library" hidden>

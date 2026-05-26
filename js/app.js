@@ -12,6 +12,35 @@ const SOURCE_LIBRARY_PREVIEW_MAX_SCALE = 3;
 const SOURCE_LIBRARY_MIN_ZOOM = 0.55;
 const SOURCE_LIBRARY_MAX_ZOOM = 3.2;
 const SOURCE_REPORT_THUMBNAIL_WIDTH = 460;
+const CLIMATE_MAP_KEYWORDS = [
+  "agroclimatic",
+  "air temperature",
+  "atmospheric precipitation",
+  "atmospheric pressure",
+  "clear-sky",
+  "climate",
+  "climate types",
+  "climate water deficit",
+  "expected precipitation",
+  "expected temperature",
+  "frost",
+  "growing season",
+  "humidity",
+  "hydrometeorological",
+  "local climate zones",
+  "mean air temperature",
+  "meteorological",
+  "precipitation",
+  "projected climate",
+  "snow cover",
+  "solar radiation",
+  "sunshine",
+  "temperature change",
+  "temperature trend",
+  "weather hazards",
+  "wind conditions"
+];
+const CLIMATE_MAP_EXCLUDED_KEYWORDS = ["cover", "introduction", "photo", "photos", "table", "text"];
 const MODERATOR_ATLAS_RENDER_MAX_SCALE = 4;
 const MODERATOR_ATLAS_RENDER_MAX_WIDTH = 2200;
 const MODERATOR_ATLAS_RENDER_MAX_HEIGHT = 3000;
@@ -359,6 +388,7 @@ const state = {
   currentScene: "cover",
   returnScene: "cover",
   query: "",
+  climateMapQuery: "",
   libraryQuery: "",
   libraryCollection: "all",
   librarySelectedId: "",
@@ -409,6 +439,7 @@ const elements = {
   cover: document.querySelector("#cover"),
   album: document.querySelector("#album"),
   contents: document.querySelector("#contents"),
+  climateMaps: document.querySelector("#climate-maps"),
   library: document.querySelector("#library"),
   moderator: document.querySelector("#moderator"),
   metricPlates: document.querySelector("#metric-plates"),
@@ -419,9 +450,11 @@ const elements = {
   metricSeaLabel: document.querySelector("#metric-sea-label"),
   btnBegin: document.querySelector("#btnBegin"),
   btnOpenLibrary: document.querySelector("#btnOpenLibrary"),
+  btnOpenClimateMaps: document.querySelector("#btnOpenClimateMaps"),
   btnOpenModerator: document.querySelector("#btnOpenModerator"),
   btnContents: document.querySelector("#btnContents"),
   btnLibrary: document.querySelector("#btnLibrary"),
+  btnClimateMaps: document.querySelector("#btnClimateMaps"),
   btnModerator: document.querySelector("#btnModerator"),
   btnFull: document.querySelector("#btnFull"),
   fullLabel: document.querySelector("#full-label"),
@@ -462,6 +495,11 @@ const elements = {
   contentsCount: document.querySelector("#contents-count"),
   contentsGrid: document.querySelector("#cgrid"),
   cClose: document.querySelector("#cClose"),
+  climateMapsClose: document.querySelector("#climate-maps-close"),
+  climateMapsSearch: document.querySelector("#climate-maps-search"),
+  climateMapsCount: document.querySelector("#climate-maps-count"),
+  climateMapsStats: document.querySelector("#climate-maps-stats"),
+  climateMapsGrid: document.querySelector("#climate-maps-grid"),
   libraryClose: document.querySelector("#library-close"),
   libraryStats: document.querySelector("#library-stats"),
   librarySearch: document.querySelector("#library-search"),
@@ -1543,13 +1581,14 @@ function showScene(sceneName) {
     sceneName = state.started ? "album" : "cover";
   }
 
-  if (!REGIONS.length && sceneName !== "cover" && sceneName !== "contents" && sceneName !== "library") {
+  if (!REGIONS.length && sceneName !== "cover" && sceneName !== "contents" && sceneName !== "climateMaps" && sceneName !== "library") {
     sceneName = "cover";
   }
 
   elements.cover.hidden = sceneName !== "cover";
   elements.album.hidden = sceneName !== "album";
   elements.contents.hidden = sceneName !== "contents";
+  elements.climateMaps.hidden = sceneName !== "climateMaps";
   elements.library.hidden = sceneName !== "library";
   elements.moderator.hidden = !MODERATOR_ENABLED || sceneName !== "moderator";
   state.currentScene = sceneName;
@@ -1571,6 +1610,7 @@ function syncModeratorAvailability() {
 
 function syncLibraryAvailability() {
   const hasDocuments = SOURCE_DOCUMENTS.length > 0;
+  const hasClimateMaps = getClimateMapDocuments().length > 0;
 
   if (elements.btnLibrary) {
     elements.btnLibrary.disabled = !hasDocuments;
@@ -1578,6 +1618,14 @@ function syncLibraryAvailability() {
 
   if (elements.btnOpenLibrary) {
     elements.btnOpenLibrary.disabled = !hasDocuments;
+  }
+
+  if (elements.btnClimateMaps) {
+    elements.btnClimateMaps.disabled = !hasClimateMaps;
+  }
+
+  if (elements.btnOpenClimateMaps) {
+    elements.btnOpenClimateMaps.disabled = !hasClimateMaps;
   }
 }
 
@@ -1668,6 +1716,11 @@ function switchAtlas(atlasId) {
     elements.contentsSearch.value = "";
   }
 
+  if (elements.climateMapsSearch) {
+    elements.climateMapsSearch.value = "";
+    state.climateMapQuery = "";
+  }
+
   closeDrawer();
   resetModeratorSessionCache();
 
@@ -1683,6 +1736,7 @@ function switchAtlas(atlasId) {
   populateModeratorRegionOptions();
   buildFilmstrip();
   buildContents();
+  buildClimateMaps();
   buildModeratorDraftList();
   void syncProjectArchiveDraftsFromHandle().catch(() => {
     // Keep atlas switching responsive even if the connected archive cannot be read.
@@ -2177,6 +2231,18 @@ function syncContentsHighlight() {
   });
 }
 
+function syncClimateMapsHighlight() {
+  if (!elements.climateMapsGrid) {
+    return;
+  }
+
+  Array.from(elements.climateMapsGrid.querySelectorAll("[data-document-id]")).forEach((card) => {
+    const documentId = card.dataset.documentId;
+    card.classList.toggle("curcard", documentId === state.librarySelectedId);
+    card.classList.toggle("has-note", hasLibraryNote(documentId));
+  });
+}
+
 function render(index) {
   const region = getEffectiveRegion(getRegionByIndex(index));
 
@@ -2317,6 +2383,26 @@ function getReportDocuments() {
   return SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "report");
 }
 
+function getSourceDocumentSearchText(sourceDocument) {
+  return [
+    sourceDocument.title,
+    sourceDocument.alias,
+    sourceDocument.fileName,
+    sourceDocument.folder,
+    sourceDocument.categoryLabel,
+    sourceDocument.collection,
+    sourceDocument.year,
+    sourceDocument.partner,
+    sourceDocument.path,
+    getLibraryNote(sourceDocument.id),
+    ...(sourceDocument.topics || []),
+    ...(sourceDocument.keywords || [])
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 function getVisibleReportDocuments() {
   const query = state.query.trim().toLowerCase();
   const reports = getReportDocuments();
@@ -2326,24 +2412,171 @@ function getVisibleReportDocuments() {
   }
 
   return reports.filter((sourceDocument) => {
-    const haystack = [
-      sourceDocument.title,
-      sourceDocument.alias,
-      sourceDocument.fileName,
-      sourceDocument.folder,
-      sourceDocument.collection,
-      sourceDocument.year,
-      sourceDocument.partner,
-      sourceDocument.path,
-      getLibraryNote(sourceDocument.id),
-      ...(sourceDocument.topics || []),
-      ...(sourceDocument.keywords || [])
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+    return getSourceDocumentSearchText(sourceDocument).includes(query);
+  });
+}
 
-    return haystack.includes(query);
+function hasClimateMapKeyword(sourceDocument) {
+  const haystack = getSourceDocumentSearchText(sourceDocument);
+  return CLIMATE_MAP_KEYWORDS.some((keyword) => haystack.includes(keyword));
+}
+
+function hasExcludedClimateMapKeyword(sourceDocument) {
+  const title = String(sourceDocument.title || "").toLowerCase();
+  return CLIMATE_MAP_EXCLUDED_KEYWORDS.some((keyword) => new RegExp(`\\b${keyword}\\b`).test(title));
+}
+
+function isClimateMapDocument(sourceDocument) {
+  if (sourceDocument.category !== "map") {
+    return false;
+  }
+
+  if (sourceDocument.collectionId === "regional-maps") {
+    return false;
+  }
+
+  if (hasExcludedClimateMapKeyword(sourceDocument)) {
+    return false;
+  }
+
+  return hasClimateMapKeyword(sourceDocument);
+}
+
+function getClimateMapDocuments() {
+  return SOURCE_DOCUMENTS.filter(isClimateMapDocument);
+}
+
+function getVisibleClimateMapDocuments() {
+  const query = state.climateMapQuery.trim().toLowerCase();
+  const climateMaps = getClimateMapDocuments();
+
+  if (!query) {
+    return climateMaps;
+  }
+
+  return climateMaps.filter((sourceDocument) => getSourceDocumentSearchText(sourceDocument).includes(query));
+}
+
+function getClimateMapGroupLabel(collectionId) {
+  const labels = {
+    "thematic-maps": "Atlas thematic climate maps",
+    "drivers-of-change": "Climate change and observed trends",
+    "climate-chapter": "Climate chapter visuals"
+  };
+
+  return labels[collectionId] || "Climate map visuals";
+}
+
+function getClimateMapsCountLabel(count) {
+  return `${count} climate map${count === 1 ? "" : "s"} visible`;
+}
+
+function renderClimateMapCard(sourceDocument, visibleIndex) {
+  const currentClass = sourceDocument.id === state.librarySelectedId ? " curcard" : "";
+  const metaParts = [
+    sourceDocument.year,
+    sourceDocument.sizeLabel
+  ].filter(Boolean);
+  const noteTag = hasLibraryNote(sourceDocument.id)
+    ? '<div class="card-draft-tag">Notes saved</div>'
+    : "";
+
+  return `
+    <button
+      class="ccard report-card climate-map-card${currentClass}"
+      type="button"
+      data-document-id="${escapeHtml(sourceDocument.id)}"
+      style="animation-delay:${Math.min(visibleIndex, 18) * 28}ms"
+    >
+      <div class="cthumb">
+        <span class="cnum">MAP</span>
+        <img alt="${escapeHtml(sourceDocument.title)} thumbnail" loading="lazy" />
+        <div class="cthumb-fallback">
+          <span>${escapeHtml(sourceDocument.collection)}</span>
+          <strong>${escapeHtml(sourceDocument.title)}</strong>
+        </div>
+      </div>
+      <div class="cmeta">
+        <h4>${escapeHtml(sourceDocument.title)}</h4>
+        <div class="ct">${escapeHtml(metaParts.join(" - ") || sourceDocument.collection)}</div>
+        ${noteTag}
+      </div>
+    </button>
+  `;
+}
+
+function buildClimateMaps() {
+  if (!elements.climateMapsGrid) {
+    return;
+  }
+
+  if (state.reportThumbnailObserver) {
+    state.reportThumbnailObserver.disconnect();
+    state.reportThumbnailObserver = null;
+  }
+
+  const allClimateMaps = getClimateMapDocuments();
+  const visibleClimateMaps = getVisibleClimateMapDocuments();
+
+  if (elements.climateMapsStats) {
+    elements.climateMapsStats.textContent = `${allClimateMaps.length} climate map PDFs indexed`;
+  }
+
+  if (elements.climateMapsCount) {
+    elements.climateMapsCount.textContent = getClimateMapsCountLabel(visibleClimateMaps.length);
+  }
+
+  if (!visibleClimateMaps.length) {
+    elements.climateMapsGrid.innerHTML = `
+      <div class="empty-contents">
+        No climate maps match this filter. Try temperature, precipitation,
+        water deficit, snow, solar, wind, or growing season.
+      </div>
+    `;
+    return;
+  }
+
+  const groups = visibleClimateMaps.reduce((groupMap, sourceDocument) => {
+    const key = sourceDocument.collectionId || "climate-map-visuals";
+    if (!groupMap.has(key)) {
+      groupMap.set(key, []);
+    }
+
+    groupMap.get(key).push(sourceDocument);
+    return groupMap;
+  }, new Map());
+
+  let visibleIndex = 0;
+  elements.climateMapsGrid.innerHTML = Array.from(groups.entries())
+    .map(([collectionId, documents]) => {
+      const cards = documents
+        .map((sourceDocument) => renderClimateMapCard(sourceDocument, visibleIndex++))
+        .join("");
+
+      return `
+        <section class="climate-map-group">
+          <div class="climate-map-group-head">
+            <h3>${escapeHtml(getClimateMapGroupLabel(collectionId))}</h3>
+            <span>${documents.length} map${documents.length === 1 ? "" : "s"}</span>
+          </div>
+          <div class="cgrid climate-map-grid">
+            ${cards}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
+
+  Array.from(elements.climateMapsGrid.querySelectorAll("[data-document-id]")).forEach((card) => {
+    if (!(card instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    card.addEventListener("click", () => {
+      openLibraryDocument(card.dataset.documentId);
+    });
+
+    queueReportThumbnail(card, getLibraryDocumentById(card.dataset.documentId));
   });
 }
 
@@ -2605,25 +2838,7 @@ function getVisibleLibraryDocuments() {
       return true;
     }
 
-    const haystack = [
-      sourceDocument.title,
-      sourceDocument.alias,
-      sourceDocument.fileName,
-      sourceDocument.folder,
-      sourceDocument.categoryLabel,
-      sourceDocument.collection,
-      sourceDocument.year,
-      sourceDocument.partner,
-      sourceDocument.path,
-      getLibraryNote(sourceDocument.id),
-      ...(sourceDocument.topics || []),
-      ...(sourceDocument.keywords || [])
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(query);
+    return getSourceDocumentSearchText(sourceDocument).includes(query);
   });
 }
 
@@ -2963,6 +3178,8 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   elements.libraryNoteStatus.textContent = hasLibraryNote(sourceDocument.id) ? "Notes saved." : "";
   elements.libraryNoteStatus.classList.remove("is-alert");
   syncLibraryListHighlight();
+  syncContentsHighlight();
+  syncClimateMapsHighlight();
   clearLibraryPdfDocument();
 
   if (loadPdf) {
@@ -3003,6 +3220,8 @@ function persistSelectedLibraryNote() {
   elements.libraryNoteStatus.textContent = note ? "Notes saved." : "";
   elements.libraryNoteStatus.classList.remove("is-alert");
   syncLibraryListHighlight();
+  syncContentsHighlight();
+  syncClimateMapsHighlight();
 }
 
 function getDefaultDraftValues(regionId) {
@@ -3677,6 +3896,7 @@ function syncModeratorViews() {
   buildFilmstrip();
   buildModeratorDraftList();
   buildContents();
+  buildClimateMaps();
 
   if (state.started && REGIONS.length) {
     render(state.index);
@@ -4218,6 +4438,31 @@ function closeContents() {
   }
 }
 
+function openClimateMaps() {
+  if (!getClimateMapDocuments().length) {
+    return;
+  }
+
+  if (state.currentScene !== "climateMaps") {
+    state.returnScene = state.currentScene;
+  }
+
+  showScene("climateMaps");
+  buildClimateMaps();
+  window.requestAnimationFrame(() => {
+    elements.climateMapsSearch?.focus();
+  });
+}
+
+function closeClimateMaps() {
+  const nextScene = state.returnScene || (state.started ? "album" : "cover");
+  showScene(nextScene);
+
+  if (state.currentScene === "album") {
+    fitImage();
+  }
+}
+
 function openLibrary() {
   if (!SOURCE_DOCUMENTS.length) {
     return;
@@ -4462,6 +4707,9 @@ function wireEvents() {
   if (elements.btnOpenLibrary) {
     elements.btnOpenLibrary.addEventListener("click", openLibrary);
   }
+  if (elements.btnOpenClimateMaps) {
+    elements.btnOpenClimateMaps.addEventListener("click", openClimateMaps);
+  }
   if (elements.btnOpenModerator) {
     elements.btnOpenModerator.addEventListener("click", () => {
       openModerator(state.moderatorRegionId || REGIONS[state.index]?.id || REGIONS[0]?.id || "");
@@ -4483,6 +4731,14 @@ function wireEvents() {
 
     openLibrary();
   });
+  elements.btnClimateMaps.addEventListener("click", () => {
+    if (state.currentScene === "climateMaps") {
+      closeClimateMaps();
+      return;
+    }
+
+    openClimateMaps();
+  });
   elements.btnModerator.addEventListener("click", () => {
     if (!MODERATOR_ENABLED) {
       return;
@@ -4496,6 +4752,7 @@ function wireEvents() {
     openModerator(state.moderatorRegionId || REGIONS[state.index]?.id || REGIONS[0]?.id || "");
   });
   elements.cClose.addEventListener("click", closeContents);
+  elements.climateMapsClose.addEventListener("click", closeClimateMaps);
   elements.libraryClose.addEventListener("click", closeLibrary);
   elements.moderatorBack.addEventListener("click", closeModerator);
   elements.btnFull.addEventListener("click", toggleFullscreen);
@@ -4519,10 +4776,25 @@ function wireEvents() {
 
   elements.contentsSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      const visibleRegions = getVisibleRegions();
+      const visibleReports = getVisibleReportDocuments();
 
-      if (visibleRegions.length === 1) {
-        jumpToIndex(INDEX_BY_ID.get(visibleRegions[0].id));
+      if (visibleReports.length === 1) {
+        openLibraryDocument(visibleReports[0].id);
+      }
+    }
+  });
+
+  elements.climateMapsSearch.addEventListener("input", (event) => {
+    state.climateMapQuery = event.target.value;
+    buildClimateMaps();
+  });
+
+  elements.climateMapsSearch.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const visibleClimateMaps = getVisibleClimateMapDocuments();
+
+      if (visibleClimateMaps.length === 1) {
+        openLibraryDocument(visibleClimateMaps[0].id);
       }
     }
   });
@@ -4815,6 +5087,13 @@ function wireEvents() {
         event.preventDefault();
       }
 
+      if (event.key === "Escape" && state.currentScene === "climateMaps" && state.climateMapQuery) {
+        state.climateMapQuery = "";
+        elements.climateMapsSearch.value = "";
+        buildClimateMaps();
+        event.preventDefault();
+      }
+
       return;
     }
 
@@ -4826,6 +5105,8 @@ function wireEvents() {
 
       if (event.key.toLowerCase() === "c") {
         openContents();
+      } else if (event.key.toLowerCase() === "k") {
+        openClimateMaps();
       } else if (event.key.toLowerCase() === "l") {
         openLibrary();
       } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
@@ -4838,10 +5119,24 @@ function wireEvents() {
     if (state.currentScene === "contents") {
       if (event.key === "Escape") {
         closeContents();
+      } else if (event.key.toLowerCase() === "k") {
+        openClimateMaps();
       } else if (event.key.toLowerCase() === "l") {
         openLibrary();
       } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
         openModerator();
+      }
+
+      return;
+    }
+
+    if (state.currentScene === "climateMaps") {
+      if (event.key === "Escape") {
+        closeClimateMaps();
+      } else if (event.key.toLowerCase() === "l") {
+        openLibrary();
+      } else if (event.key.toLowerCase() === "c") {
+        openContents();
       }
 
       return;
@@ -4889,6 +5184,8 @@ function wireEvents() {
       }
     } else if (event.key.toLowerCase() === "c") {
       openContents();
+    } else if (event.key.toLowerCase() === "k") {
+      openClimateMaps();
     } else if (event.key.toLowerCase() === "l") {
       openLibrary();
     } else if (MODERATOR_ENABLED && event.key.toLowerCase() === "m") {
@@ -4918,6 +5215,7 @@ if (ATLAS_COLLECTIONS.length) {
     populateModeratorForm(state.moderatorRegionId || REGIONS[0].id);
     buildFilmstrip();
     buildContents();
+    buildClimateMaps();
     buildModeratorDraftList();
     syncNavigation();
   }

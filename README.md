@@ -34,7 +34,9 @@ Note: moderator PDF preview is not reliable when the atlas is opened directly fr
 
 ## Adding another atlas type
 
-The app can now switch between atlas collections from the header selector. Define those collections in `js/regions.js` through `window.ATLASES`.
+The app still supports multiple atlas collections in `js/regions.js` through
+`window.ATLASES`, although the public evidence-library interface currently hides
+the atlas selector to keep the kiosk workflow focused.
 
 Each atlas entry should include:
 
@@ -87,15 +89,17 @@ The current scaffold now ships as a scene-based album UI:
 
 1. A cover scene introduces the offline evidence library.
 2. A searchable contents scene shows report thumbnails and opens reports in the PDF viewer.
-3. A source library scene indexes the uploaded `assets/source` PDFs for reports,
+3. A dedicated climate maps scene groups visual climate-change maps by source collection.
+4. A source library scene indexes the uploaded `assets/source` PDFs for reports,
    regional maps, thematic maps, and climate chapter pages.
 
 Core controls:
 
 1. Use **Browse reports** or the top-bar **Contents** button to open the report thumbnail grid.
-2. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
-3. Search terms such as `NDC 3.0`, `GHG`, and `emissions reduction` surface the NDC ambition and implementation reports.
-4. Use `F` for fullscreen and `Esc` to close overlays.
+2. Use **Climate maps** to review visual climate-change maps such as temperature trends, precipitation, snow cover, water deficit, solar radiation, and growing-season indicators.
+3. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
+4. Search terms such as `NDC 3.0`, `GHG`, and `emissions reduction` surface the NDC ambition and implementation reports.
+5. Use `F` for fullscreen and `Esc` to close overlays.
 
 Moderator tools are hidden by default while the public evidence-library workflow is being finalized. To re-enable them for internal editing, set `window.ATLAS_CONFIG.showModerator = true` before `js/app.js` loads.
 
