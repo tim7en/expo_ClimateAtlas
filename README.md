@@ -24,11 +24,12 @@ uzbekistan-atlas/
 ## Development loop
 
 1. Open the folder in VS Code.
-2. Run `npm install` once to install the local PDF preview dependency used by moderator mode.
-3. Install the recommended extensions: Live Server and Prettier.
-4. Right-click `index.html` and choose **Open with Live Server**.
-5. Edit `js/regions.js` for atlas content, `css/style.css` for presentation, and `js/app.js` for interaction.
-6. Keep the production bundle out of the edit loop. It is generated from the source files when you are ready to export.
+2. Install Git LFS once on the machine if needed, then run `git lfs pull` in this repo so `assets/source` contains real PDFs instead of pointer files.
+3. Run `npm install` once to install the local PDF preview dependency used by moderator mode.
+4. Install the recommended extensions: Live Server and Prettier.
+5. Right-click `index.html` and choose **Open with Live Server**.
+6. Edit `js/regions.js` for atlas content, `css/style.css` for presentation, and `js/app.js` for interaction.
+7. Keep the production bundle out of the edit loop. It is generated from the source files when you are ready to export.
 
 Note: moderator PDF preview is not reliable when the atlas is opened directly from `file://` inside embedded browsers. Use Live Server or run `python -m http.server 8010` from the repo root and open `http://127.0.0.1:8010/` in a normal browser when you need to inspect uploaded PDFs.
 
@@ -128,13 +129,15 @@ Moderator tools are hidden by default while the public evidence-library workflow
 The library data is generated from the uploaded `assets/source` folder:
 
 ```powershell
+git lfs pull
 python tools/build_source_library.py
 ```
 
 This writes `js/source-library.js`, which the app loads before `js/app.js`.
 The library keeps report/map notes in browser local storage under
 `atlasSourceLibraryNotesV1`, so notes are available offline in the same browser
-profile.
+profile. If the PDFs in `assets/source` are still tiny text pointer files, the
+generator now stops with a Git LFS warning instead of writing a broken library.
 
 For inline PDF previews, serve the project over local HTTP:
 
