@@ -3734,6 +3734,20 @@ function updateLibraryPdfControls() {
   syncLibraryAiPanel();
 }
 
+function isLocalPreviewEnvironment() {
+  const hostname = String(window.location.hostname || "").toLowerCase();
+  return window.location.protocol === "file:" || hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function buildLibraryPdfFailureMessage(sourceDocument) {
+  const fileLabel = sourceDocument?.fileName || sourceDocument?.title || "the selected document";
+  const recoveryHint = isLocalPreviewEnvironment()
+    ? " If this repo was cloned without Git LFS, run git lfs pull and reload the page."
+    : " If the problem persists, reload the page or use Open PDF to view the source file directly.";
+
+  return `Could not preview ${fileLabel}. Use Open PDF to view the source file.${recoveryHint}`;
+}
+
 async function ensureLibraryPdfDocument(sourceDocument) {
   if (!sourceDocument) {
     return null;
@@ -3769,7 +3783,7 @@ async function ensureLibraryPdfDocument(sourceDocument) {
   return pdfDocument;
 }
 
-async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
+async function renderLibraryPdfPage(requestedPage = state.libraryPage, retryCount = 0) {
   const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
 
   if (!sourceDocument) {
@@ -3849,11 +3863,21 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
       return;
     }
 
+    if (retryCount < 1) {
+      clearLibraryPdfDocument();
+      setLibraryPdfMessage(`Retrying ${sourceDocument.fileName || sourceDocument.title}...`);
+      updateLibraryPdfControls();
+
+      window.setTimeout(() => {
+        if (state.librarySelectedId === sourceDocument.id) {
+          void renderLibraryPdfPage(requestedPage, retryCount + 1);
+        }
+      }, 120);
+      return;
+    }
+
     resetLibraryPdfCanvas();
-    setLibraryPdfMessage(
-      `Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file. If this repo was cloned without Git LFS, run git lfs pull and reload the page.`,
-      true
-    );
+    setLibraryPdfMessage(buildLibraryPdfFailureMessage(sourceDocument), true);
     updateLibraryPdfControls();
   }
 }
