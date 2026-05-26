@@ -3174,13 +3174,7 @@ textarea:focus-visible,
 }
 
 </style>
-  <script>
-window.ATLAS_CONFIG = Object.assign({}, window.ATLAS_CONFIG, {
-  showModerator: false,
-  useBrowserDrafts: false
-});
-</script>
-</head>
+  </head>
   <body>
     <div class="bg" aria-hidden="true"></div>
 
@@ -12095,7 +12089,10 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
     }
 
     resetLibraryPdfCanvas();
-    setLibraryPdfMessage(`Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file.`, true);
+    setLibraryPdfMessage(
+      `Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file. If this repo was cloned without Git LFS, run git lfs pull and reload the page.`,
+      true
+    );
     updateLibraryPdfControls();
   }
 }

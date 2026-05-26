@@ -12089,7 +12089,10 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
     }
 
     resetLibraryPdfCanvas();
-    setLibraryPdfMessage(`Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file.`, true);
+    setLibraryPdfMessage(
+      `Could not preview ${sourceDocument.fileName || sourceDocument.title}. Use Open PDF to view the source file. If this repo was cloned without Git LFS, run git lfs pull and reload the page.`,
+      true
+    );
     updateLibraryPdfControls();
   }
 }
