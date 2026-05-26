@@ -32,6 +32,24 @@ uzbekistan-atlas/
 
 Note: moderator PDF preview is not reliable when the atlas is opened directly from `file://` inside embedded browsers. Use Live Server or run `python -m http.server 8010` from the repo root and open `http://127.0.0.1:8010/` in a normal browser when you need to inspect uploaded PDFs.
 
+For the AI explanation MVP, prefer the local atlas server instead of `python -m http.server`:
+
+```powershell
+$env:ATLAS_AI_API_KEY = "your-key"
+python tools/serve_atlas.py --port 8010
+```
+
+Optional environment variables:
+
+1. `ATLAS_AI_MODEL` to override the default model name.
+2. `ATLAS_AI_BASE_URL` to point at a compatible OpenAI-style endpoint.
+3. `ATLAS_AI_CHAT_PATH` to override the default `/chat/completions` path.
+4. `ATLAS_AI_TIMEOUT` to change the upstream timeout in seconds.
+
+The MVP AI flow stays focused on climate-related map pages in the library viewer. It sends the current rendered page image plus extracted page text to the local proxy, which keeps the API key out of the browser.
+
+If you keep serving the atlas from a different local server or port, set `window.ATLAS_CONFIG.aiEndpoint` before `js/app.js` loads so the browser posts to the AI proxy you actually started.
+
 ## Adding another atlas type
 
 The app still supports multiple atlas collections in `js/regions.js` through
@@ -92,6 +110,7 @@ The current scaffold now ships as a scene-based album UI:
 3. A dedicated climate maps scene groups visual climate-change maps by source collection.
 4. A source library scene indexes the uploaded `assets/source` PDFs for reports,
    regional maps, thematic maps, and climate chapter pages.
+5. The library viewer now includes an **Explain page** action for climate-related maps, plus separate page notes.
 
 Core controls:
 
@@ -99,7 +118,8 @@ Core controls:
 2. Use **Climate maps** to review visual climate-change maps such as temperature trends, precipitation, snow cover, water deficit, solar radiation, and growing-season indicators.
 3. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
 4. Search terms such as `NDC 3.0`, `GHG`, and `emissions reduction` surface the NDC ambition and implementation reports.
-5. Use `F` for fullscreen and `Esc` to close overlays.
+5. For climate map pages in the library, press `E` or click **Explain page** to generate an English explanation of the current page.
+6. Use `F` for fullscreen and `Esc` to close overlays.
 
 Moderator tools are hidden by default while the public evidence-library workflow is being finalized. To re-enable them for internal editing, set `window.ATLAS_CONFIG.showModerator = true` before `js/app.js` loads.
 
@@ -124,6 +144,15 @@ python -m http.server 8010 --bind 127.0.0.1
 
 Then open `http://127.0.0.1:8010/`. The generated `dist/uzbekistan-atlas.html`
 also works from the repo when `assets/source` remains beside `dist`.
+
+For AI-enabled local use, replace that with:
+
+```powershell
+$env:ATLAS_AI_API_KEY = "your-key"
+python tools/serve_atlas.py --port 8010
+```
+
+That server still serves the static atlas, and it also exposes `POST /api/explain-page` plus `GET /api/ai-status`.
 
 ## Moderator workflow
 

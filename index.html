@@ -411,12 +411,88 @@
                     <button class="draft-action" id="library-zoom-out" type="button">Zoom out</button>
                     <button class="draft-action" id="library-zoom-in" type="button">Zoom in</button>
                     <button class="draft-action" id="library-zoom-fit" type="button">Fit</button>
+                    <button class="draft-action library-ai-trigger" id="library-ai-explain" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3 4 7v5c0 4.6 3 7.2 8 9 5-1.8 8-4.4 8-9V7l-8-4Z" stroke-linejoin="round" />
+                        <path d="M9.5 11.2c.3-1.4 1.2-2.2 2.7-2.2 1.5 0 2.6.9 2.6 2.2 0 2-2.4 2.2-2.4 4" stroke-linecap="round" />
+                        <path d="M12 17.2h.01" stroke-linecap="round" />
+                      </svg>
+                      <span id="library-ai-explain-label">Explain page</span>
+                    </button>
                   </div>
                 </div>
 
+                <section class="library-ai" id="library-ai-panel" data-ai-state="idle" aria-labelledby="library-ai-title">
+                  <div class="library-ai-head">
+                    <div class="library-ai-intro">
+                      <button class="library-ai-avatar" id="library-ai-avatar" type="button" aria-label="AI rover companion">
+                        <span class="library-ai-avatar-bubble">
+                          <span id="library-ai-avatar-line">Pick a climate map and I will translate it into plain English.</span>
+                        </span>
+
+                        <span class="library-ai-rover" aria-hidden="true">
+                          <span class="library-ai-rover-shadow"></span>
+                          <span class="library-ai-rover-antennas">
+                            <span></span>
+                            <span></span>
+                          </span>
+                          <span class="library-ai-rover-head">
+                            <span class="library-ai-rover-eye library-ai-rover-eye-left"><span></span></span>
+                            <span class="library-ai-rover-eye library-ai-rover-eye-right"><span></span></span>
+                          </span>
+                          <span class="library-ai-rover-neck"></span>
+                          <span class="library-ai-rover-body">
+                            <span class="library-ai-rover-panel"></span>
+                            <span class="library-ai-rover-arm library-ai-rover-arm-left"></span>
+                            <span class="library-ai-rover-arm library-ai-rover-arm-right"></span>
+                          </span>
+                          <span class="library-ai-rover-base">
+                            <span class="library-ai-rover-tread"></span>
+                            <span class="library-ai-rover-wheel library-ai-rover-wheel-left"></span>
+                            <span class="library-ai-rover-wheel library-ai-rover-wheel-right"></span>
+                          </span>
+                        </span>
+                      </button>
+
+                      <div>
+                        <p class="library-kicker">AI interpreter</p>
+                        <h4 id="library-ai-title">Climate map explanation</h4>
+                      </div>
+                    </div>
+
+                    <div class="library-ai-actions">
+                      <div class="library-ai-indicators" aria-live="polite">
+                        <div class="library-ai-chip" id="library-ai-chip">
+                          <span class="library-ai-chip-dot" aria-hidden="true"></span>
+                          <span id="library-ai-chip-label">Standby</span>
+                        </div>
+                        <div class="library-ai-timer" id="library-ai-timer">00:00</div>
+                      </div>
+
+                      <button class="draft-action" id="library-ai-copy" type="button">Insert into page notes</button>
+                    </div>
+                  </div>
+
+                  <div class="library-ai-status-row">
+                    <p class="library-ai-status" id="library-ai-status" aria-live="polite">
+                      Select a climate-related map page to generate an English explanation.
+                    </p>
+                    <div class="library-ai-progress" aria-hidden="true">
+                      <span></span>
+                    </div>
+                  </div>
+
+                  <div class="library-ai-body">
+                    <div class="library-ai-placeholder" id="library-ai-placeholder">
+                      The explanation uses the current PDF page image together with extracted page text. It stays separate from your notes until you insert it.
+                    </div>
+                    <div class="library-ai-text" id="library-ai-text" hidden></div>
+                  </div>
+                </section>
+
                 <label class="library-notes" for="library-note">
-                  <span>Notes</span>
-                  <textarea id="library-note" name="library-note" rows="5" placeholder="Add notes for this report or map"></textarea>
+                  <span>Page notes</span>
+                  <textarea id="library-note" name="library-note" rows="5" placeholder="Add notes for this specific page"></textarea>
                 </label>
 
                 <p class="moderator-status library-note-status" id="library-note-status" aria-live="polite"></p>

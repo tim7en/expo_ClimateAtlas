@@ -4,7 +4,9 @@ const SOURCE_LIBRARY = Array.isArray(window.SOURCE_LIBRARY) ? window.SOURCE_LIBR
 const PDFJS_LIB = window.pdfjsLib || null;
 const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV2";
 const LEGACY_MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
-const SOURCE_LIBRARY_NOTES_KEY = "atlasSourceLibraryNotesV1";
+const LEGACY_SOURCE_LIBRARY_NOTES_KEY = "atlasSourceLibraryNotesV1";
+const SOURCE_LIBRARY_NOTES_KEY = "atlasSourceLibraryNotesV2";
+const SOURCE_LIBRARY_AI_KEY = "atlasSourceLibraryAiV1";
 const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator === true;
 const USE_BROWSER_DRAFTS = ATLAS_CONFIG.useBrowserDrafts !== false;
 const MODERATOR_PDF_PREVIEW_MAX_SCALE = 2.25;
@@ -12,6 +14,9 @@ const SOURCE_LIBRARY_PREVIEW_MAX_SCALE = 3;
 const SOURCE_LIBRARY_MIN_ZOOM = 0.55;
 const SOURCE_LIBRARY_MAX_ZOOM = 3.2;
 const SOURCE_REPORT_THUMBNAIL_WIDTH = 460;
+const LIBRARY_AI_DEFAULT_PROXY_ORIGIN = "http://127.0.0.1:8010";
+const LIBRARY_AI_IMAGE_MAX_DIMENSION = 1600;
+const LIBRARY_AI_IMAGE_QUALITY = 0.72;
 const CLIMATE_MAP_KEYWORDS = [
   "agroclimatic",
   "air temperature",
@@ -393,6 +398,7 @@ const state = {
   libraryCollection: "all",
   librarySelectedId: "",
   libraryNotes: loadSourceLibraryNotes(),
+  libraryAiCache: loadLibraryAiCache(),
   libraryPdfDocumentId: "",
   libraryPdfLoadingTask: null,
   libraryPdfDocument: null,
@@ -402,6 +408,16 @@ const state = {
   libraryRenderTask: null,
   libraryRenderToken: 0,
   libraryNoteSaveTimer: null,
+  libraryAiAbortController: null,
+  libraryAiRequestToken: 0,
+  libraryAiBusy: false,
+  libraryAiStartedAt: 0,
+  libraryAiLastDurationMs: 0,
+  libraryAiTimerId: null,
+  libraryAiAvatarMood: "",
+  libraryAiAvatarTipIndex: 0,
+  libraryAiAvatarReactionTimer: null,
+  libraryPageTextCache: new Map(),
   reportThumbnailCache: new Map(),
   reportThumbnailPromises: new Map(),
   reportThumbnailObserver: null,
@@ -520,6 +536,17 @@ const elements = {
   libraryZoomOut: document.querySelector("#library-zoom-out"),
   libraryZoomIn: document.querySelector("#library-zoom-in"),
   libraryZoomFit: document.querySelector("#library-zoom-fit"),
+  libraryAiPanel: document.querySelector("#library-ai-panel"),
+  libraryAiExplain: document.querySelector("#library-ai-explain"),
+  libraryAiExplainLabel: document.querySelector("#library-ai-explain-label"),
+  libraryAiAvatar: document.querySelector("#library-ai-avatar"),
+  libraryAiChipLabel: document.querySelector("#library-ai-chip-label"),
+  libraryAiAvatarLine: document.querySelector("#library-ai-avatar-line"),
+  libraryAiTimer: document.querySelector("#library-ai-timer"),
+  libraryAiCopy: document.querySelector("#library-ai-copy"),
+  libraryAiStatus: document.querySelector("#library-ai-status"),
+  libraryAiPlaceholder: document.querySelector("#library-ai-placeholder"),
+  libraryAiText: document.querySelector("#library-ai-text"),
   libraryNote: document.querySelector("#library-note"),
   libraryNoteStatus: document.querySelector("#library-note-status"),
   moderatorBack: document.querySelector("#moderator-back"),
@@ -766,12 +793,89 @@ function persistDrafts() {
 }
 
 function loadSourceLibraryNotes() {
+  const emptyPayload = {
+    documents: {},
+    pages: {}
+  };
+
+  const normalizeStringRecord = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value).reduce((record, [key, item]) => {
+      const normalizedKey = String(key || "").trim();
+      const normalizedValue = String(item || "").trim();
+
+      if (normalizedKey && normalizedValue) {
+        record[normalizedKey] = normalizedValue;
+      }
+
+      return record;
+    }, {});
+  };
+
+  const normalizePageRecord = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value).reduce((record, [documentId, pages]) => {
+      const normalizedDocumentId = String(documentId || "").trim();
+      const normalizedPages = normalizeStringRecord(pages);
+
+      if (normalizedDocumentId && Object.keys(normalizedPages).length) {
+        record[normalizedDocumentId] = normalizedPages;
+      }
+
+      return record;
+    }, {});
+  };
+
+  const normalizeNotesPayload = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { ...emptyPayload };
+    }
+
+    return {
+      documents: normalizeStringRecord(value.documents),
+      pages: normalizePageRecord(value.pages)
+    };
+  };
+
   try {
     const raw = window.localStorage.getItem(SOURCE_LIBRARY_NOTES_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    if (parsed) {
+      return normalizeNotesPayload(parsed);
+    }
   } catch {
-    return {};
+    return { ...emptyPayload };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LEGACY_SOURCE_LIBRARY_NOTES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return {
+      documents:
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? Object.entries(parsed).reduce((record, [documentId, note]) => {
+              const normalizedDocumentId = String(documentId || "").trim();
+              const normalizedNote = String(note || "").trim();
+
+              if (normalizedDocumentId && normalizedNote) {
+                record[normalizedDocumentId] = normalizedNote;
+              }
+
+              return record;
+            }, {})
+          : {},
+      pages: {}
+    };
+  } catch {
+    return { ...emptyPayload };
   }
 }
 
@@ -782,6 +886,46 @@ function persistSourceLibraryNotes() {
     if (elements.libraryNoteStatus) {
       elements.libraryNoteStatus.textContent = "Notes could not be saved in this browser.";
       elements.libraryNoteStatus.classList.add("is-alert");
+    }
+  }
+}
+
+function loadLibraryAiCache() {
+  try {
+    const raw = window.localStorage.getItem(SOURCE_LIBRARY_AI_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce((record, [key, value]) => {
+      const normalizedKey = String(key || "").trim();
+      const text = String(value?.text || "").trim();
+
+      if (!normalizedKey || !text) {
+        return record;
+      }
+
+      record[normalizedKey] = {
+        text,
+        updatedAt: String(value?.updatedAt || "").trim(),
+        model: String(value?.model || "").trim()
+      };
+      return record;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function persistLibraryAiCache() {
+  try {
+    window.localStorage.setItem(SOURCE_LIBRARY_AI_KEY, JSON.stringify(state.libraryAiCache));
+  } catch {
+    if (elements.libraryAiStatus) {
+      elements.libraryAiStatus.textContent = "AI explanations could not be cached in this browser.";
+      elements.libraryAiStatus.classList.add("is-alert");
     }
   }
 }
@@ -2394,7 +2538,7 @@ function getSourceDocumentSearchText(sourceDocument) {
     sourceDocument.year,
     sourceDocument.partner,
     sourceDocument.path,
-    getLibraryNote(sourceDocument.id),
+    getLibrarySearchableNotes(sourceDocument.id),
     ...(sourceDocument.topics || []),
     ...(sourceDocument.keywords || [])
   ]
@@ -2812,12 +2956,582 @@ function getLibraryDocumentById(documentId) {
   return SOURCE_DOCUMENTS.find((sourceDocument) => sourceDocument.id === documentId) || null;
 }
 
-function getLibraryNote(documentId) {
-  return String(state.libraryNotes?.[documentId] || "");
+function getLibraryPageStorageKey(documentId, pageNumber) {
+  return `${String(documentId || "").trim()}::${Math.max(1, Number(pageNumber) || 1)}`;
+}
+
+function getLibraryDocumentNote(documentId) {
+  return String(state.libraryNotes?.documents?.[documentId] || "");
+}
+
+function getLibraryPageNote(documentId, pageNumber) {
+  const normalizedPage = String(Math.max(1, Number(pageNumber) || 1));
+  const pageNote = String(state.libraryNotes?.pages?.[documentId]?.[normalizedPage] || "").trim();
+
+  if (pageNote) {
+    return pageNote;
+  }
+
+  if (normalizedPage === "1") {
+    return getLibraryDocumentNote(documentId).trim();
+  }
+
+  return "";
+}
+
+function getLibrarySearchableNotes(documentId) {
+  const notes = [getLibraryDocumentNote(documentId)];
+  const pageNotes = Object.values(state.libraryNotes?.pages?.[documentId] || {});
+
+  return [...notes, ...pageNotes]
+    .map((note) => String(note || "").trim())
+    .filter(Boolean)
+    .join(" ");
 }
 
 function hasLibraryNote(documentId) {
-  return getLibraryNote(documentId).trim().length > 0;
+  return getLibrarySearchableNotes(documentId).trim().length > 0;
+}
+
+function hasCurrentLibraryPageNote(documentId = state.librarySelectedId, pageNumber = state.libraryPage) {
+  return getLibraryPageNote(documentId, pageNumber).trim().length > 0;
+}
+
+function flushLibraryNoteSave() {
+  if (!state.libraryNoteSaveTimer) {
+    return;
+  }
+
+  window.clearTimeout(state.libraryNoteSaveTimer);
+  state.libraryNoteSaveTimer = null;
+  persistSelectedLibraryNote();
+}
+
+function getSelectedLibraryAiCacheEntry(documentId = state.librarySelectedId, pageNumber = state.libraryPage) {
+  return state.libraryAiCache[getLibraryPageStorageKey(documentId, pageNumber)] || null;
+}
+
+function formatLibraryAiDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.round((Number(milliseconds) || 0) / 1000));
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function renderLibraryAiTimer() {
+  if (!elements.libraryAiTimer) {
+    return;
+  }
+
+  const elapsedMs = state.libraryAiBusy && state.libraryAiStartedAt
+    ? Date.now() - state.libraryAiStartedAt
+    : state.libraryAiLastDurationMs;
+
+  elements.libraryAiTimer.textContent = formatLibraryAiDuration(elapsedMs);
+}
+
+function startLibraryAiTimer() {
+  if (state.libraryAiTimerId) {
+    window.clearInterval(state.libraryAiTimerId);
+  }
+
+  state.libraryAiStartedAt = Date.now();
+  state.libraryAiLastDurationMs = 0;
+  renderLibraryAiTimer();
+  state.libraryAiTimerId = window.setInterval(renderLibraryAiTimer, 1000);
+}
+
+function stopLibraryAiTimer(reset = false) {
+  if (state.libraryAiTimerId) {
+    window.clearInterval(state.libraryAiTimerId);
+    state.libraryAiTimerId = null;
+  }
+
+  if (reset) {
+    state.libraryAiLastDurationMs = 0;
+  } else if (state.libraryAiStartedAt) {
+    state.libraryAiLastDurationMs = Date.now() - state.libraryAiStartedAt;
+  }
+
+  state.libraryAiStartedAt = 0;
+  renderLibraryAiTimer();
+}
+
+function setLibraryAiVisualState(visualState, chipLabel = "Standby") {
+  if (elements.libraryAiPanel) {
+    elements.libraryAiPanel.dataset.aiState = visualState;
+  }
+
+  if (elements.libraryAiChipLabel) {
+    elements.libraryAiChipLabel.textContent = chipLabel;
+  }
+}
+
+function getLibraryAiAvatarMood(sourceDocument, visualState, canExplain) {
+  if (!sourceDocument) {
+    return "idle";
+  }
+
+  if (!isLibraryAiDocument(sourceDocument)) {
+    return "limited";
+  }
+
+  if (visualState === "loading") {
+    return "loading";
+  }
+
+  if (visualState === "ready") {
+    return "ready";
+  }
+
+  if (visualState === "error") {
+    return "error";
+  }
+
+  return canExplain ? "active" : "waiting";
+}
+
+function getLibraryAiAvatarLines(mood) {
+  switch (mood) {
+    case "loading":
+      return [
+        "Scanning colors, legends, and labels now.",
+        "Rolling through the page for climate clues.",
+        "Checking patterns before I write the note."
+      ];
+    case "ready":
+      return [
+        "Fresh explanation delivered.",
+        "You can copy this note or drop it into page notes.",
+        "Regenerate if you want another pass on the same page."
+      ];
+    case "error":
+      return [
+        "I lost the route to the AI proxy.",
+        "Once the local AI server is back, I can try again.",
+        "The current page preview also needs to stay loaded."
+      ];
+    case "limited":
+      return [
+        "I am tuned for climate-related map pages right now.",
+        "Pick a climate map and I will switch into interpreter mode.",
+        "This MVP is still learning the rest of the library."
+      ];
+    case "waiting":
+      return [
+        "Load the page preview and I can start reading it.",
+        "I need the current map image on screen before I explain it.",
+        "Once the page renders, the Explain page button will wake up."
+      ];
+    case "active":
+      return [
+        "Ready for a climate map reading.",
+        "Ask for an explanation and I will turn this page into plain English.",
+        "I can compare labels, gradients, and layout on the current page."
+      ];
+    default:
+      return [
+        "Pick a climate map and I will translate it into plain English.",
+        "I stay parked here until a map page needs decoding.",
+        "Open a climate page and I will help interpret it."
+      ];
+  }
+}
+
+function syncLibraryAiAvatar(sourceDocument, visualState, canExplain) {
+  if (!elements.libraryAiAvatar || !elements.libraryAiAvatarLine) {
+    return;
+  }
+
+  const mood = getLibraryAiAvatarMood(sourceDocument, visualState, canExplain);
+  const lines = getLibraryAiAvatarLines(mood);
+
+  if (state.libraryAiAvatarMood !== mood) {
+    state.libraryAiAvatarMood = mood;
+    state.libraryAiAvatarTipIndex = 0;
+  }
+
+  elements.libraryAiAvatar.dataset.avatarMood = mood;
+  elements.libraryAiAvatarLine.textContent = lines[Math.min(state.libraryAiAvatarTipIndex, lines.length - 1)] || "";
+}
+
+function nudgeLibraryAiAvatar() {
+  if (!elements.libraryAiAvatar || !elements.libraryAiAvatarLine) {
+    return;
+  }
+
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+  const visualState = elements.libraryAiPanel?.dataset.aiState || "idle";
+  const canExplain = canExplainSelectedLibraryPage(sourceDocument);
+  const mood = getLibraryAiAvatarMood(sourceDocument, visualState, canExplain);
+  const lines = getLibraryAiAvatarLines(mood);
+
+  if (state.libraryAiAvatarMood !== mood) {
+    state.libraryAiAvatarMood = mood;
+    state.libraryAiAvatarTipIndex = 0;
+  } else {
+    state.libraryAiAvatarTipIndex = (state.libraryAiAvatarTipIndex + 1) % lines.length;
+  }
+
+  elements.libraryAiAvatar.dataset.avatarMood = mood;
+  elements.libraryAiAvatarLine.textContent = lines[state.libraryAiAvatarTipIndex] || "";
+  elements.libraryAiAvatar.dataset.avatarReaction = "wave";
+
+  if (state.libraryAiAvatarReactionTimer) {
+    window.clearTimeout(state.libraryAiAvatarReactionTimer);
+  }
+
+  state.libraryAiAvatarReactionTimer = window.setTimeout(() => {
+    if (elements.libraryAiAvatar) {
+      delete elements.libraryAiAvatar.dataset.avatarReaction;
+    }
+    state.libraryAiAvatarReactionTimer = null;
+  }, 1800);
+}
+
+function getDefaultLibraryAiPlaceholder() {
+  return "The explanation uses the current PDF page image together with extracted page text. It stays separate from your notes until you insert it.";
+}
+
+function setLibraryAiStatus(message, isAlert = false) {
+  if (!elements.libraryAiStatus) {
+    return;
+  }
+
+  elements.libraryAiStatus.textContent = message;
+  elements.libraryAiStatus.classList.toggle("is-alert", Boolean(isAlert));
+}
+
+function setLibraryAiText(text, placeholderMessage = getDefaultLibraryAiPlaceholder()) {
+  if (!elements.libraryAiText || !elements.libraryAiPlaceholder) {
+    return;
+  }
+
+  const hasText = Boolean(String(text || "").trim());
+  elements.libraryAiText.hidden = !hasText;
+  elements.libraryAiText.textContent = hasText ? String(text).trim() : "";
+  elements.libraryAiPlaceholder.textContent = placeholderMessage;
+  elements.libraryAiPlaceholder.hidden = hasText;
+}
+
+function isLibraryAiDocument(sourceDocument) {
+  return Boolean(sourceDocument && isClimateMapDocument(sourceDocument));
+}
+
+function canExplainSelectedLibraryPage(sourceDocument = getLibraryDocumentById(state.librarySelectedId)) {
+  return Boolean(
+    isLibraryAiDocument(sourceDocument) &&
+      state.libraryPdfDocument &&
+      elements.libraryCanvas?.width &&
+      elements.libraryCanvas?.height
+  );
+}
+
+function abortLibraryAiRequest() {
+  if (state.libraryAiAbortController) {
+    state.libraryAiAbortController.abort();
+  }
+
+  state.libraryAiAbortController = null;
+  state.libraryAiBusy = false;
+  stopLibraryAiTimer(true);
+}
+
+function syncLibraryAiPanel(statusMessage = "", isAlert = false) {
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+  const cacheEntry = getSelectedLibraryAiCacheEntry();
+  const canExplain = canExplainSelectedLibraryPage(sourceDocument);
+  const hasCachedExplanation = Boolean(cacheEntry?.text);
+  let visualState = "idle";
+  let chipLabel = "Standby";
+  let placeholderMessage = getDefaultLibraryAiPlaceholder();
+
+  if (elements.libraryAiExplainLabel) {
+    elements.libraryAiExplainLabel.textContent = state.libraryAiBusy
+      ? "Explaining..."
+      : hasCachedExplanation
+        ? "Regenerate"
+        : "Explain page";
+  }
+
+  if (elements.libraryAiExplain) {
+    elements.libraryAiExplain.disabled = state.libraryAiBusy || !canExplain;
+  }
+
+  if (elements.libraryAiCopy) {
+    elements.libraryAiCopy.disabled = state.libraryAiBusy || !hasCachedExplanation;
+  }
+
+  if (state.libraryAiBusy) {
+    visualState = "loading";
+    chipLabel = "Reviewing";
+    placeholderMessage = "Reviewing the current map page. Reading visible labels, gradients, legends, and spatial patterns before writing the note.";
+  } else if (isAlert) {
+    visualState = "error";
+    chipLabel = "Check setup";
+    placeholderMessage = "The AI review could not complete. Confirm the local AI proxy is running and that the current page preview is loaded.";
+  } else if (!sourceDocument) {
+    visualState = "idle";
+    chipLabel = "Standby";
+    placeholderMessage = getDefaultLibraryAiPlaceholder();
+  } else if (!isLibraryAiDocument(sourceDocument)) {
+    visualState = "idle";
+    chipLabel = "Climate only";
+    placeholderMessage = "This MVP AI review is currently focused on climate-related map pages in the library viewer.";
+  } else if (hasCachedExplanation) {
+    visualState = "ready";
+    chipLabel = "Ready";
+  } else if (!canExplain) {
+    visualState = "idle";
+    chipLabel = "Waiting";
+    placeholderMessage = "Load the current PDF page preview to enable AI review for this map page.";
+  }
+
+  setLibraryAiVisualState(visualState, chipLabel);
+  syncLibraryAiAvatar(sourceDocument, visualState, canExplain);
+  setLibraryAiText(cacheEntry?.text || "", placeholderMessage);
+
+  if (statusMessage) {
+    setLibraryAiStatus(statusMessage, isAlert);
+    return;
+  }
+
+  if (!sourceDocument) {
+    setLibraryAiStatus("Select a document to preview before requesting an explanation.");
+    return;
+  }
+
+  if (!isLibraryAiDocument(sourceDocument)) {
+    setLibraryAiStatus("The MVP AI interpreter is currently enabled for climate-related map pages.");
+    return;
+  }
+
+  if (state.libraryAiBusy) {
+    setLibraryAiStatus("Analyzing the current page image and extracted labels...");
+    return;
+  }
+
+  if (hasCachedExplanation) {
+    setLibraryAiStatus(`English explanation ready for page ${state.libraryPage}.`);
+    return;
+  }
+
+  if (!canExplain) {
+    setLibraryAiStatus("Load the current page preview to generate an English explanation.");
+    return;
+  }
+
+  setLibraryAiStatus(`Explain page ${state.libraryPage} to generate a short English note.`);
+}
+
+function syncSelectedLibraryNoteField(sourceDocument = getLibraryDocumentById(state.librarySelectedId)) {
+  if (!elements.libraryNote) {
+    return;
+  }
+
+  if (!sourceDocument) {
+    elements.libraryNote.value = "";
+    elements.libraryNoteStatus.textContent = "";
+    elements.libraryNoteStatus.classList.remove("is-alert");
+    return;
+  }
+
+  elements.libraryNote.value = getLibraryPageNote(sourceDocument.id, state.libraryPage);
+  elements.libraryNoteStatus.textContent = hasCurrentLibraryPageNote(sourceDocument.id, state.libraryPage)
+    ? `Page ${state.libraryPage} notes saved.`
+    : "";
+  elements.libraryNoteStatus.classList.remove("is-alert");
+}
+
+function getLibraryPageText(documentId, pageNumber) {
+  return state.libraryPageTextCache.get(getLibraryPageStorageKey(documentId, pageNumber)) || "";
+}
+
+async function extractLibraryPageText(pdfPage) {
+  try {
+    const textContent = await pdfPage.getTextContent();
+
+    return (textContent?.items || [])
+      .map((item) => String(item?.str || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return "";
+  }
+}
+
+function captureLibraryCanvasImage() {
+  const sourceCanvas = elements.libraryCanvas;
+
+  if (!sourceCanvas?.width || !sourceCanvas?.height) {
+    return "";
+  }
+
+  const longestSide = Math.max(sourceCanvas.width, sourceCanvas.height);
+  const scale = Math.min(1, LIBRARY_AI_IMAGE_MAX_DIMENSION / Math.max(1, longestSide));
+  const targetCanvas = document.createElement("canvas");
+  targetCanvas.width = Math.max(1, Math.floor(sourceCanvas.width * scale));
+  targetCanvas.height = Math.max(1, Math.floor(sourceCanvas.height * scale));
+
+  const context = targetCanvas.getContext("2d", { alpha: false });
+  if (!context) {
+    return "";
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+  context.drawImage(sourceCanvas, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  return targetCanvas.toDataURL("image/jpeg", LIBRARY_AI_IMAGE_QUALITY);
+}
+
+function resolveLibraryAiEndpoint() {
+  const configuredEndpoint = String(ATLAS_CONFIG.aiEndpoint || "").trim();
+
+  if (configuredEndpoint) {
+    return configuredEndpoint;
+  }
+
+  if (/^https?:$/i.test(window.location.protocol)) {
+    return new URL("/api/explain-page", window.location.origin).href;
+  }
+
+  return `${LIBRARY_AI_DEFAULT_PROXY_ORIGIN}/api/explain-page`;
+}
+
+async function explainSelectedLibraryPage() {
+  const sourceDocument = getLibraryDocumentById(state.librarySelectedId);
+
+  if (!sourceDocument) {
+    syncLibraryAiPanel("Select a document to preview before requesting an explanation.", true);
+    return;
+  }
+
+  if (!isLibraryAiDocument(sourceDocument)) {
+    syncLibraryAiPanel("The MVP AI interpreter is currently limited to climate-related map pages.", true);
+    return;
+  }
+
+  if (!canExplainSelectedLibraryPage(sourceDocument)) {
+    syncLibraryAiPanel("Wait for the current page preview to finish rendering, then try again.", true);
+    return;
+  }
+
+  const pageNumber = state.libraryPage;
+  const imageDataUrl = captureLibraryCanvasImage();
+  if (!imageDataUrl) {
+    syncLibraryAiPanel("The current page image could not be captured for AI analysis.", true);
+    return;
+  }
+
+  abortLibraryAiRequest();
+  const requestToken = ++state.libraryAiRequestToken;
+  const abortController = new AbortController();
+  let finalStatusMessage = "";
+  let finalStatusAlert = false;
+  state.libraryAiAbortController = abortController;
+  state.libraryAiBusy = true;
+  startLibraryAiTimer();
+  syncLibraryAiPanel();
+
+  try {
+    const response = await fetch(resolveLibraryAiEndpoint(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        documentId: sourceDocument.id,
+        title: sourceDocument.title,
+        alias: sourceDocument.alias,
+        fileName: sourceDocument.fileName,
+        collection: sourceDocument.collection,
+        collectionId: sourceDocument.collectionId,
+        category: sourceDocument.category,
+        topics: sourceDocument.topics,
+        keywords: sourceDocument.keywords,
+        pageNumber,
+        pageCount: state.libraryPageCount,
+        pageText: getLibraryPageText(sourceDocument.id, pageNumber),
+        imageDataUrl
+      }),
+      signal: abortController.signal
+    });
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      const routeHint =
+        response.status === 404 || response.status === 501
+          ? "AI endpoint not found. Start the atlas with `python tools/serve_atlas.py` or point window.ATLAS_CONFIG.aiEndpoint to the running AI proxy."
+          : "";
+      throw new Error(payload?.error || routeHint || `AI request failed with status ${response.status}.`);
+    }
+
+    const explanation = String(payload?.explanation || "").trim();
+    if (!explanation) {
+      throw new Error("The AI service returned an empty explanation.");
+    }
+
+    if (requestToken !== state.libraryAiRequestToken) {
+      return;
+    }
+
+    state.libraryAiCache[getLibraryPageStorageKey(sourceDocument.id, pageNumber)] = {
+      text: explanation,
+      updatedAt: String(payload?.updatedAt || new Date().toISOString()),
+      model: String(payload?.model || "").trim()
+    };
+    persistLibraryAiCache();
+    finalStatusMessage = `English explanation generated for page ${pageNumber}.`;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return;
+    }
+
+    finalStatusMessage = String(error?.message || "The AI explanation request failed.");
+    finalStatusAlert = true;
+  } finally {
+    if (state.libraryAiAbortController === abortController) {
+      state.libraryAiAbortController = null;
+    }
+
+    state.libraryAiBusy = false;
+    if (requestToken === state.libraryAiRequestToken) {
+      if (!abortController.signal.aborted) {
+        stopLibraryAiTimer();
+      }
+      syncLibraryAiPanel(finalStatusMessage, finalStatusAlert);
+    }
+  }
+}
+
+function insertLibraryAiIntoNotes() {
+  const cacheEntry = getSelectedLibraryAiCacheEntry();
+
+  if (!cacheEntry?.text) {
+    syncLibraryAiPanel("Generate an explanation before inserting it into page notes.", true);
+    return;
+  }
+
+  const currentValue = String(elements.libraryNote.value || "").trim();
+  const nextValue = currentValue
+    ? currentValue.includes(cacheEntry.text)
+      ? currentValue
+      : `${currentValue}\n\n${cacheEntry.text}`
+    : cacheEntry.text;
+
+  window.clearTimeout(state.libraryNoteSaveTimer);
+  state.libraryNoteSaveTimer = null;
+  elements.libraryNote.value = nextValue;
+  persistSelectedLibraryNote();
 }
 
 function getVisibleLibraryDocuments() {
@@ -3017,6 +3731,7 @@ function updateLibraryPdfControls() {
   elements.libraryZoomOut.disabled = !hasDocument || state.libraryZoom <= SOURCE_LIBRARY_MIN_ZOOM;
   elements.libraryZoomIn.disabled = !hasDocument || state.libraryZoom >= SOURCE_LIBRARY_MAX_ZOOM;
   elements.libraryZoomFit.disabled = !hasDocument || state.libraryZoom === 1;
+  syncLibraryAiPanel();
 }
 
 async function ensureLibraryPdfDocument(sourceDocument) {
@@ -3081,6 +3796,8 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
       return;
     }
 
+    const pageTextPromise = extractLibraryPageText(page);
+
     const baseViewport = page.getViewport({ scale: 1 });
     const stageWidth = Math.max(320, (elements.libraryPdfStage?.clientWidth || 720) - 56);
     const fitScale = Math.min(SOURCE_LIBRARY_PREVIEW_MAX_SCALE, stageWidth / baseViewport.width);
@@ -3110,14 +3827,18 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage) {
     await state.libraryRenderTask.promise;
     state.libraryRenderTask = null;
 
+    const pageText = await pageTextPromise;
+
     if (renderToken !== state.libraryRenderToken) {
       return;
     }
 
+    state.libraryPageTextCache.set(getLibraryPageStorageKey(sourceDocument.id, pageNumber), pageText);
     state.libraryPage = pageNumber;
     state.libraryPageCount = pdfDocument.numPages || 1;
     elements.libraryPdfEmpty.hidden = true;
     elements.libraryCanvasShell.hidden = false;
+    syncSelectedLibraryNoteField(sourceDocument);
     updateLibraryPdfControls();
   } catch (error) {
     if (error?.name === "RenderingCancelledException") {
@@ -3138,22 +3859,24 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   const loadPdf = options.loadPdf !== false;
 
   if (!sourceDocument) {
+    abortLibraryAiRequest();
     state.librarySelectedId = "";
     elements.libraryDocKicker.textContent = "Source PDF";
     elements.libraryDocTitle.textContent = "Select a document";
     elements.libraryDocMeta.innerHTML = "";
     elements.libraryOpenPdf.href = "#";
     elements.libraryOpenPdf.setAttribute("aria-disabled", "true");
-    elements.libraryNote.value = "";
-    elements.libraryNoteStatus.textContent = "";
+    syncSelectedLibraryNoteField(null);
     clearLibraryPdfDocument();
     resetLibraryPdfCanvas();
     setLibraryPdfMessage("Select a document to preview.");
     updateLibraryPdfControls();
+    syncLibraryAiPanel();
     syncLibraryListHighlight();
     return;
   }
 
+  abortLibraryAiRequest();
   state.librarySelectedId = sourceDocument.id;
   state.libraryPage = 1;
   state.libraryZoom = 1;
@@ -3174,13 +3897,12 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   const documentPath = resolveSourceDocumentPath(sourceDocument.path);
   elements.libraryOpenPdf.href = documentPath || "#";
   elements.libraryOpenPdf.toggleAttribute("aria-disabled", !documentPath);
-  elements.libraryNote.value = getLibraryNote(sourceDocument.id);
-  elements.libraryNoteStatus.textContent = hasLibraryNote(sourceDocument.id) ? "Notes saved." : "";
-  elements.libraryNoteStatus.classList.remove("is-alert");
+  syncSelectedLibraryNoteField(sourceDocument);
   syncLibraryListHighlight();
   syncContentsHighlight();
   syncClimateMapsHighlight();
   clearLibraryPdfDocument();
+  syncLibraryAiPanel();
 
   if (loadPdf) {
     void renderLibraryPdfPage(1);
@@ -3188,10 +3910,12 @@ function renderLibraryDocument(sourceDocument, options = {}) {
     resetLibraryPdfCanvas();
     setLibraryPdfMessage("Select a document to preview.");
     updateLibraryPdfControls();
+    syncLibraryAiPanel();
   }
 }
 
 function selectLibraryDocument(documentId) {
+  flushLibraryNoteSave();
   const sourceDocument = getLibraryDocumentById(documentId);
 
   if (!sourceDocument) {
@@ -3209,16 +3933,24 @@ function persistSelectedLibraryNote() {
   }
 
   const note = elements.libraryNote.value.trim();
+  const pageNumber = String(Math.max(1, Number(state.libraryPage) || 1));
+
+  state.libraryNotes.pages[sourceDocument.id] = state.libraryNotes.pages[sourceDocument.id] || {};
 
   if (note) {
-    state.libraryNotes[sourceDocument.id] = note;
+    state.libraryNotes.pages[sourceDocument.id][pageNumber] = note;
   } else {
-    delete state.libraryNotes[sourceDocument.id];
+    delete state.libraryNotes.pages[sourceDocument.id][pageNumber];
+
+    if (!Object.keys(state.libraryNotes.pages[sourceDocument.id]).length) {
+      delete state.libraryNotes.pages[sourceDocument.id];
+    }
   }
 
   persistSourceLibraryNotes();
-  elements.libraryNoteStatus.textContent = note ? "Notes saved." : "";
+  elements.libraryNoteStatus.textContent = note ? `Page ${pageNumber} notes saved.` : "";
   elements.libraryNoteStatus.classList.remove("is-alert");
+  state.libraryNoteSaveTimer = null;
   syncLibraryListHighlight();
   syncContentsHighlight();
   syncClimateMapsHighlight();
@@ -4484,6 +5216,7 @@ function openLibrary() {
 }
 
 function openLibraryDocument(documentId) {
+  flushLibraryNoteSave();
   const sourceDocument = getLibraryDocumentById(documentId);
 
   if (!sourceDocument) {
@@ -4509,6 +5242,8 @@ function openLibraryDocument(documentId) {
 }
 
 function closeLibrary() {
+  flushLibraryNoteSave();
+  abortLibraryAiRequest();
   const nextScene = state.returnScene || (state.started ? "album" : "cover");
   showScene(nextScene);
 
@@ -4821,12 +5556,14 @@ function wireEvents() {
 
   elements.libraryPrev.addEventListener("click", () => {
     if (state.libraryPage > 1) {
+      flushLibraryNoteSave();
       void renderLibraryPdfPage(state.libraryPage - 1);
     }
   });
 
   elements.libraryNext.addEventListener("click", () => {
     if (state.libraryPage < state.libraryPageCount) {
+      flushLibraryNoteSave();
       void renderLibraryPdfPage(state.libraryPage + 1);
     }
   });
@@ -4848,10 +5585,17 @@ function wireEvents() {
 
   elements.libraryNote.addEventListener("input", () => {
     window.clearTimeout(state.libraryNoteSaveTimer);
-    elements.libraryNoteStatus.textContent = "Saving notes...";
+    elements.libraryNoteStatus.textContent = `Saving page ${state.libraryPage} notes...`;
     elements.libraryNoteStatus.classList.remove("is-alert");
     state.libraryNoteSaveTimer = window.setTimeout(persistSelectedLibraryNote, 250);
   });
+
+  elements.libraryAiExplain?.addEventListener("click", () => {
+    void explainSelectedLibraryPage();
+  });
+
+  elements.libraryAiCopy?.addEventListener("click", insertLibraryAiIntoNotes);
+  elements.libraryAiAvatar?.addEventListener("click", nudgeLibraryAiAvatar);
 
   elements.moderatorRegion.addEventListener("change", (event) => {
     populateModeratorForm(event.target.value);
@@ -5147,11 +5891,17 @@ function wireEvents() {
         closeLibrary();
       } else if (event.key === "ArrowLeft") {
         if (state.libraryPage > 1) {
+          flushLibraryNoteSave();
           void renderLibraryPdfPage(state.libraryPage - 1);
         }
       } else if (event.key === "ArrowRight") {
         if (state.libraryPage < state.libraryPageCount) {
+          flushLibraryNoteSave();
           void renderLibraryPdfPage(state.libraryPage + 1);
+        }
+      } else if (event.key.toLowerCase() === "e") {
+        if (elements.libraryAiExplain && !elements.libraryAiExplain.disabled) {
+          void explainSelectedLibraryPage();
         }
       }
 
