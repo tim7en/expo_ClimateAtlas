@@ -85,21 +85,19 @@ Moderator drafts, browser storage, and exported handoff JSON now keep an `atlasI
 
 The current scaffold now ships as a scene-based album UI:
 
-1. A cover scene introduces the atlas.
-2. An album scene shows one climate plate at a time with page-turn navigation.
-3. A searchable contents scene lets users jump straight to a region.
-4. A source library scene indexes the uploaded `assets/source` PDFs for reports,
+1. A cover scene introduces the offline evidence library.
+2. A searchable contents scene shows report thumbnails and opens reports in the PDF viewer.
+3. A source library scene indexes the uploaded `assets/source` PDFs for reports,
    regional maps, thematic maps, and climate chapter pages.
 
 Core controls:
 
-1. Drag to pan the loaded map plate.
-2. Scroll, double-click, or use the zoom controls to zoom.
-3. Open **Map notes** for the climate and water summary plus glossary.
-4. Use the top-bar **Contents** button or press `C` to open the searchable plate grid.
-5. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
-6. Use the cover-screen **Open moderator** button, the top-bar **Moderator** button, or press `M` to open the moderator workspace.
-7. Use the arrow keys to move between plates, `I` to toggle notes, `F` for fullscreen, and `Esc` to close overlays.
+1. Use **Browse reports** or the top-bar **Contents** button to open the report thumbnail grid.
+2. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
+3. Search terms such as `NDC 3.0`, `GHG`, and `emissions reduction` surface the NDC ambition and implementation reports.
+4. Use `F` for fullscreen and `Esc` to close overlays.
+
+Moderator tools are hidden by default while the public evidence-library workflow is being finalized. To re-enable them for internal editing, set `window.ATLAS_CONFIG.showModerator = true` before `js/app.js` loads.
 
 ## Source PDF library
 
