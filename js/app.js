@@ -5,12 +5,13 @@ const PDFJS_LIB = window.pdfjsLib || null;
 const MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV2";
 const LEGACY_MODERATOR_STORAGE_KEY = "atlasModeratorDraftsV1";
 const SOURCE_LIBRARY_NOTES_KEY = "atlasSourceLibraryNotesV1";
-const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator !== false;
+const MODERATOR_ENABLED = ATLAS_CONFIG.showModerator === true;
 const USE_BROWSER_DRAFTS = ATLAS_CONFIG.useBrowserDrafts !== false;
 const MODERATOR_PDF_PREVIEW_MAX_SCALE = 2.25;
 const SOURCE_LIBRARY_PREVIEW_MAX_SCALE = 3;
 const SOURCE_LIBRARY_MIN_ZOOM = 0.55;
 const SOURCE_LIBRARY_MAX_ZOOM = 3.2;
+const SOURCE_REPORT_THUMBNAIL_WIDTH = 460;
 const MODERATOR_ATLAS_RENDER_MAX_SCALE = 4;
 const MODERATOR_ATLAS_RENDER_MAX_WIDTH = 2200;
 const MODERATOR_ATLAS_RENDER_MAX_HEIGHT = 3000;
@@ -224,6 +225,7 @@ function normalizeSourceDocument(rawDocument) {
   return {
     id,
     title,
+    alias: String(rawDocument.alias || rawDocument.englishTitle || "").trim(),
     path,
     fileName: String(rawDocument.fileName || "").trim(),
     folder: String(rawDocument.folder || "").trim(),
@@ -370,6 +372,9 @@ const state = {
   libraryRenderTask: null,
   libraryRenderToken: 0,
   libraryNoteSaveTimer: null,
+  reportThumbnailCache: new Map(),
+  reportThumbnailPromises: new Map(),
+  reportThumbnailObserver: null,
   animating: false,
   hintDismissed: false,
   mapReady: false,
@@ -1592,20 +1597,41 @@ function getOverviewMetricText(value, fallback = "--") {
 }
 
 function updateOverview() {
-  elements.metricPlates.textContent = String(REGIONS.length);
-  elements.metricRivers.textContent = getOverviewMetricText(ATLAS_OVERVIEW.riverCount);
-  elements.metricSea.textContent = getOverviewMetricText(ATLAS_OVERVIEW.seaCount);
+  if (SOURCE_DOCUMENTS.length) {
+    const reportCount = SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "report").length;
+    const mapCount = SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "map").length;
 
-  if (elements.metricPlatesLabel) {
-    elements.metricPlatesLabel.textContent = ATLAS_OVERVIEW.plateLabel || "Plates";
-  }
+    elements.metricPlates.textContent = String(SOURCE_DOCUMENTS.length);
+    elements.metricRivers.textContent = String(reportCount);
+    elements.metricSea.textContent = String(mapCount);
 
-  if (elements.metricRiversLabel) {
-    elements.metricRiversLabel.textContent = ATLAS_OVERVIEW.riverLabel || "Great Rivers";
-  }
+    if (elements.metricPlatesLabel) {
+      elements.metricPlatesLabel.textContent = "Documents";
+    }
 
-  if (elements.metricSeaLabel) {
-    elements.metricSeaLabel.textContent = ATLAS_OVERVIEW.seaLabel || "Vanishing Sea";
+    if (elements.metricRiversLabel) {
+      elements.metricRiversLabel.textContent = "Reports";
+    }
+
+    if (elements.metricSeaLabel) {
+      elements.metricSeaLabel.textContent = "Map PDFs";
+    }
+  } else {
+    elements.metricPlates.textContent = String(REGIONS.length);
+    elements.metricRivers.textContent = getOverviewMetricText(ATLAS_OVERVIEW.riverCount);
+    elements.metricSea.textContent = getOverviewMetricText(ATLAS_OVERVIEW.seaCount);
+
+    if (elements.metricPlatesLabel) {
+      elements.metricPlatesLabel.textContent = ATLAS_OVERVIEW.plateLabel || "Plates";
+    }
+
+    if (elements.metricRiversLabel) {
+      elements.metricRiversLabel.textContent = ATLAS_OVERVIEW.riverLabel || "Great Rivers";
+    }
+
+    if (elements.metricSeaLabel) {
+      elements.metricSeaLabel.textContent = ATLAS_OVERVIEW.seaLabel || "Vanishing Sea";
+    }
   }
 
   if (elements.atlasCurrentName) {
@@ -1613,7 +1639,9 @@ function updateOverview() {
   }
 
   if (elements.contentsSubtitle) {
-    elements.contentsSubtitle.textContent = `Search plates in ${getActiveAtlasName()}`;
+    elements.contentsSubtitle.textContent = SOURCE_DOCUMENTS.length
+      ? "Analytical reports and policy documents"
+      : `Search plates in ${getActiveAtlasName()}`;
   }
 }
 
@@ -2139,6 +2167,11 @@ function syncFilmstrip() {
 
 function syncContentsHighlight() {
   Array.from(elements.contentsGrid.children).forEach((card) => {
+    if (card.dataset.documentId) {
+      card.classList.toggle("curcard", card.dataset.documentId === state.librarySelectedId);
+      return;
+    }
+
     const cardIndex = Number(card.dataset.index);
     card.classList.toggle("curcard", state.started && cardIndex === state.index);
   });
@@ -2236,7 +2269,7 @@ function buildFilmstrip() {
 }
 
 function getContentsCountLabel(count) {
-  return `${count} plate${count === 1 ? "" : "s"} visible`;
+  return `${count} report${count === 1 ? "" : "s"} visible`;
 }
 
 function syncContentsCardThumbnail(card, region) {
@@ -2280,48 +2313,211 @@ function syncContentsCardThumbnail(card, region) {
     });
 }
 
-function buildContents() {
-  const visibleRegions = getVisibleRegions();
-  elements.contentsCount.textContent = getContentsCountLabel(visibleRegions.length);
+function getReportDocuments() {
+  return SOURCE_DOCUMENTS.filter((sourceDocument) => sourceDocument.category === "report");
+}
 
-  if (!visibleRegions.length) {
+function getVisibleReportDocuments() {
+  const query = state.query.trim().toLowerCase();
+  const reports = getReportDocuments();
+
+  if (!query) {
+    return reports;
+  }
+
+  return reports.filter((sourceDocument) => {
+    const haystack = [
+      sourceDocument.title,
+      sourceDocument.alias,
+      sourceDocument.fileName,
+      sourceDocument.folder,
+      sourceDocument.collection,
+      sourceDocument.year,
+      sourceDocument.partner,
+      sourceDocument.path,
+      getLibraryNote(sourceDocument.id),
+      ...(sourceDocument.topics || []),
+      ...(sourceDocument.keywords || [])
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+}
+
+async function renderSourceDocumentThumbnail(sourceDocument) {
+  if (!sourceDocument || !PDFJS_LIB?.getDocument) {
+    return "";
+  }
+
+  const loadingTask = PDFJS_LIB.getDocument({ url: resolveSourceDocumentUrl(sourceDocument.path) });
+
+  try {
+    const pdfDocument = await loadingTask.promise;
+    const page = await pdfDocument.getPage(1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = Math.min(0.7, SOURCE_REPORT_THUMBNAIL_WIDTH / baseViewport.width);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { alpha: false });
+
+    if (!context) {
+      return "";
+    }
+
+    canvas.width = Math.max(1, Math.floor(viewport.width));
+    canvas.height = Math.max(1, Math.floor(viewport.height));
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({
+      canvasContext: context,
+      viewport
+    }).promise;
+
+    return canvas.toDataURL("image/jpeg", 0.78);
+  } catch {
+    return "";
+  } finally {
+    if (loadingTask.destroy) {
+      loadingTask.destroy();
+    }
+  }
+}
+
+function applyReportThumbnail(card, thumbnailSource) {
+  const thumb = card?.querySelector(".cthumb");
+  const image = card?.querySelector("img");
+
+  if (!thumb || !image || !thumbnailSource) {
+    return;
+  }
+
+  image.addEventListener(
+    "load",
+    () => {
+      thumb.classList.add("has-image");
+    },
+    { once: true }
+  );
+  image.src = thumbnailSource;
+}
+
+function requestReportThumbnail(card, sourceDocument) {
+  if (!card || !sourceDocument) {
+    return;
+  }
+
+  const cachedThumbnail = state.reportThumbnailCache.get(sourceDocument.id);
+  if (cachedThumbnail) {
+    applyReportThumbnail(card, cachedThumbnail);
+    return;
+  }
+
+  let thumbnailPromise = state.reportThumbnailPromises.get(sourceDocument.id);
+  if (!thumbnailPromise) {
+    thumbnailPromise = renderSourceDocumentThumbnail(sourceDocument);
+    state.reportThumbnailPromises.set(sourceDocument.id, thumbnailPromise);
+  }
+
+  void thumbnailPromise.then((thumbnailSource) => {
+    state.reportThumbnailPromises.delete(sourceDocument.id);
+
+    if (!thumbnailSource) {
+      return;
+    }
+
+    state.reportThumbnailCache.set(sourceDocument.id, thumbnailSource);
+    applyReportThumbnail(card, thumbnailSource);
+  });
+}
+
+function queueReportThumbnail(card, sourceDocument) {
+  if (!card || !sourceDocument) {
+    return;
+  }
+
+  if (!PDFJS_LIB?.getDocument) {
+    return;
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    requestReportThumbnail(card, sourceDocument);
+    return;
+  }
+
+  if (!state.reportThumbnailObserver) {
+    state.reportThumbnailObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          state.reportThumbnailObserver.unobserve(entry.target);
+          requestReportThumbnail(entry.target, getLibraryDocumentById(entry.target.dataset.documentId));
+        });
+      },
+      { root: null, rootMargin: "220px 0px", threshold: 0.01 }
+    );
+  }
+
+  state.reportThumbnailObserver.observe(card);
+}
+
+function buildContents() {
+  if (state.reportThumbnailObserver) {
+    state.reportThumbnailObserver.disconnect();
+    state.reportThumbnailObserver = null;
+  }
+
+  const visibleReports = getVisibleReportDocuments();
+  elements.contentsCount.textContent = getContentsCountLabel(visibleReports.length);
+
+  if (!visibleReports.length) {
     elements.contentsGrid.innerHTML = `
       <div class="empty-contents">
-        No atlas plates match this filter. Clear the search or add broader keywords
-        in js/regions.js so this atlas can surface them.
+        No reports match this filter. Try broader terms such as climate, NDC,
+        emissions, air quality, biodiversity, or adaptation.
       </div>
     `;
     return;
   }
 
-  elements.contentsGrid.innerHTML = visibleRegions
-    .map((region, visibleIndex) => {
-      const regionIndex = INDEX_BY_ID.get(region.id);
-      const currentClass = state.started && regionIndex === state.index ? " curcard" : "";
-      const draftTag = region.hasModeratorDraft
-        ? '<div class="card-draft-tag">Moderator draft</div>'
+  elements.contentsGrid.innerHTML = visibleReports
+    .map((sourceDocument, visibleIndex) => {
+      const currentClass = sourceDocument.id === state.librarySelectedId ? " curcard" : "";
+      const metaParts = [
+        sourceDocument.year,
+        sourceDocument.partner,
+        sourceDocument.sizeLabel
+      ].filter(Boolean);
+      const noteTag = hasLibraryNote(sourceDocument.id)
+        ? '<div class="card-draft-tag">Notes saved</div>'
         : "";
 
       return `
         <button
-          class="ccard${currentClass}"
+          class="ccard report-card${currentClass}"
           type="button"
-          data-index="${regionIndex}"
-          data-region-id="${escapeHtml(region.id)}"
-          style="animation-delay:${visibleIndex * 40}ms"
+          data-document-id="${escapeHtml(sourceDocument.id)}"
+          style="animation-delay:${Math.min(visibleIndex, 18) * 32}ms"
         >
           <div class="cthumb">
-            <span class="cnum">PL ${String(regionIndex + 1).padStart(2, "0")}</span>
-            <img src="${escapeHtml(region.map)}" alt="${escapeHtml(region.name)} preview" loading="lazy" />
+            <span class="cnum">${escapeHtml(sourceDocument.prefix ? `R ${sourceDocument.prefix}` : "REPORT")}</span>
+            <img alt="${escapeHtml(sourceDocument.title)} thumbnail" loading="lazy" />
             <div class="cthumb-fallback">
-              <span>Awaiting map export</span>
-              <strong>${escapeHtml(region.name)}</strong>
+              <span>PDF report</span>
+              <strong>${escapeHtml(sourceDocument.title)}</strong>
             </div>
           </div>
           <div class="cmeta">
-            <h4>${escapeHtml(region.name)}</h4>
-            <div class="ct">${escapeHtml(region.scale)}</div>
-            ${draftTag}
+            <h4>${escapeHtml(sourceDocument.title)}</h4>
+            ${sourceDocument.alias ? `<p class="report-alias">${escapeHtml(sourceDocument.alias)}</p>` : ""}
+            <div class="ct">${escapeHtml(metaParts.join(" · ") || sourceDocument.collection)}</div>
+            ${noteTag}
           </div>
         </button>
       `;
@@ -2334,10 +2530,10 @@ function buildContents() {
     }
 
     card.addEventListener("click", () => {
-      jumpToIndex(Number(card.dataset.index));
+      openLibraryDocument(card.dataset.documentId);
     });
 
-    syncContentsCardThumbnail(card, getEffectiveRegion(card.dataset.regionId) || REGIONS[Number(card.dataset.index)]);
+    queueReportThumbnail(card, getLibraryDocumentById(card.dataset.documentId));
   });
 }
 
@@ -2411,6 +2607,7 @@ function getVisibleLibraryDocuments() {
 
     const haystack = [
       sourceDocument.title,
+      sourceDocument.alias,
       sourceDocument.fileName,
       sourceDocument.folder,
       sourceDocument.categoryLabel,
@@ -2478,6 +2675,7 @@ function buildLibraryList() {
           style="animation-delay:${Math.min(visibleIndex, 18) * 24}ms"
         >
           <div class="library-card-title">${escapeHtml(sourceDocument.title)}</div>
+          ${sourceDocument.alias ? `<div class="library-card-alias">${escapeHtml(sourceDocument.alias)}</div>` : ""}
           <div class="library-card-meta">${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join("")}</div>
           <div class="library-card-topic">${escapeHtml(topics || sourceDocument.collection)}</div>
         </button>
@@ -2748,6 +2946,7 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   elements.libraryDocKicker.textContent = `${sourceDocument.categoryLabel} · ${sourceDocument.collection}`;
   elements.libraryDocTitle.textContent = sourceDocument.title;
   elements.libraryDocMeta.innerHTML = [
+    sourceDocument.alias,
     sourceDocument.year,
     sourceDocument.partner,
     sourceDocument.sizeLabel,
@@ -4039,6 +4238,31 @@ function openLibrary() {
   });
 }
 
+function openLibraryDocument(documentId) {
+  const sourceDocument = getLibraryDocumentById(documentId);
+
+  if (!sourceDocument) {
+    return;
+  }
+
+  if (state.currentScene !== "library") {
+    state.returnScene = state.currentScene;
+  }
+
+  state.librarySelectedId = sourceDocument.id;
+  state.libraryCollection = "all";
+  state.libraryQuery = "";
+
+  if (elements.librarySearch) {
+    elements.librarySearch.value = "";
+  }
+
+  showScene("library");
+  populateLibraryCollectionOptions();
+  buildLibraryList();
+  renderLibraryDocument(sourceDocument, { loadPdf: true });
+}
+
 function closeLibrary() {
   const nextScene = state.returnScene || (state.started ? "album" : "cover");
   showScene(nextScene);
@@ -4089,6 +4313,11 @@ function previewModeratorRegion() {
 }
 
 function beginAtlas() {
+  if (SOURCE_DOCUMENTS.length) {
+    openContents();
+    return;
+  }
+
   if (!REGIONS.length) {
     return;
   }

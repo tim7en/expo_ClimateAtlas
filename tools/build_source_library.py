@@ -32,6 +32,40 @@ TOPIC_PATTERNS = [
     ("adaptation", ("адаптац", "устойчив", "resilience", "adaptation")),
 ]
 
+REPORT_ALIASES = {
+    "15": "NDC 3.0 ambitions and GHG emissions reduction opportunities",
+    "16": "Updated Nationally Determined Contribution through 2035",
+    "17": "NDC 3.0 progress and implementation assessment",
+}
+
+REPORT_EXTRA_KEYWORDS = {
+    "15": [
+        "NDC 3.0",
+        "NDC3",
+        "GHG",
+        "greenhouse gas",
+        "emissions reduction",
+        "mitigation ambition",
+        "ambition",
+    ],
+    "16": [
+        "NDC 3.0",
+        "NDC3",
+        "2035",
+        "greenhouse gas",
+        "emissions reduction",
+        "nationally determined contribution",
+    ],
+    "17": [
+        "NDC 3.0",
+        "NDC3",
+        "implementation",
+        "progress",
+        "greenhouse gas",
+        "emissions reduction",
+    ],
+}
+
 
 def slugify(value: str, fallback: str = "document") -> str:
     ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
@@ -171,11 +205,13 @@ def build_document(path: Path, report_rows: dict[int, dict[str, str]], map_title
     topics = infer_topics(title, collection, partner, path.name)
     digest = sha1(relative_path.encode("utf-8")).hexdigest()[:10]
     base_slug = slugify(title, "document")
-    keywords = [category, collection_id, collection, *topics, year, partner, path.stem]
+    alias = REPORT_ALIASES.get(prefix, "")
+    keywords = [category, collection_id, collection, *topics, year, partner, path.stem, alias, *REPORT_EXTRA_KEYWORDS.get(prefix, [])]
 
     return {
         "id": f"{base_slug}-{digest}",
         "title": title,
+        "alias": alias,
         "category": category,
         "categoryLabel": category_label,
         "collection": collection,

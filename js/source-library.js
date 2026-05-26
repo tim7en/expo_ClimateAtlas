@@ -3,6 +3,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-7290ba5c87",
     "title": "Атлас изменений окружающей среды Узбекистана",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -32,6 +33,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-08075a5dd3",
     "title": "Отчет по качеству воздуха г. Термез",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -60,6 +62,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-8a4552f729",
     "title": "Двухгодичный отчет о прозрачности Республики Узбекистан по Рамочной конвенции ООН об изменении климата",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -88,6 +91,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-7087afd86d",
     "title": "Управление качеством воздуха в Центральной Азии",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -117,6 +121,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-99e198198b",
     "title": "Страновой доклад о климате и развитии Узбекистана",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -145,6 +150,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-f130680a2e",
     "title": "Оценка качества воздуха в Ташкенте",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -173,6 +179,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-8a61d31bc1",
     "title": "Оценка устойчивости и адаптации к изменениям климата Узбекистана (англ.)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -203,6 +210,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "3-c27e927a16",
     "title": "Обзор результативности экологической деятельности Узбекистана ОРЭД-3",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -232,6 +240,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-f20c22caf6",
     "title": "Национальный доклад о состоянии окружающей среды",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -260,6 +269,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-d3eba55097",
     "title": "Национальная стратегия по управлению Рамсарскими водно-болотными угодьями (англ.)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -291,6 +301,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-2185c254f5",
     "title": "Пыльные и песчаные бури в Узбекистане: Атмосферное моделирование для выявления воздействий и смягчения",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -320,6 +331,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-5a70fc972f",
     "title": "Новые национальные цели по сохранению биоразнообразия",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -349,6 +361,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "20192028-fb9816d201",
     "title": "Оценка сходства целей: углубленный анализ Стратегии по сохранению биологического разнообразия в Республике Узбекистан на период 2019–2028 годы. (англ.)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -377,6 +390,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2026-2030-ffe7d29a06",
     "title": "Секторальные адаптационные планы на период 2026-2030 годы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -407,6 +421,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2026-2030-b65a63605b",
     "title": "Секторальные адаптационные планы на период 2026-2030 годы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -437,6 +452,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2026-2030-19419459c1",
     "title": "Секторальные адаптационные планы на период 2026-2030 годы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -467,6 +483,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2026-2030-116d16112e",
     "title": "Секторальные адаптационные планы на период 2026-2030 годы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -497,6 +514,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2026-2030-09beb33b70",
     "title": "Секторальные адаптационные планы на период 2026-2030 годы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -529,6 +547,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "ndc-75eed1c1b9",
     "title": "Возможности повышения амбициозности и качества существующих NDC в Узбекистане",
+    "alias": "NDC 3.0 ambitions and GHG emissions reduction opportunities",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -548,7 +567,15 @@ window.SOURCE_LIBRARY = [
       "15. Возможности повышения амбициозности и качества существующих NDC в Узбекистане",
       "2024",
       "Analytical reports",
+      "GHG",
+      "NDC 3.0",
+      "NDC 3.0 ambitions and GHG emissions reduction opportunities",
+      "NDC3",
+      "ambition",
       "climate",
+      "emissions reduction",
+      "greenhouse gas",
+      "mitigation ambition",
       "report",
       "reports"
     ],
@@ -557,6 +584,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2035-18e9e3c029",
     "title": "Обновленный определяемый на национальном уровне вклад Республики Узбекистан на период до 2035 года",
+    "alias": "Updated Nationally Determined Contribution through 2035",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -575,8 +603,15 @@ window.SOURCE_LIBRARY = [
     "keywords": [
       "16. Обновленный определяемый на национальном уровне вклад Республики Узбекистан на период до 2035 года",
       "2025",
+      "2035",
       "Analytical reports",
+      "NDC 3.0",
+      "NDC3",
+      "Updated Nationally Determined Contribution through 2035",
+      "emissions reduction",
       "environment",
+      "greenhouse gas",
+      "nationally determined contribution",
       "report",
       "reports"
     ],
@@ -585,6 +620,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "ndc3-a1a2d2baff",
     "title": "Оценочный отчет прогресса и реализации NDC3",
+    "alias": "NDC 3.0 progress and implementation assessment",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -604,7 +640,14 @@ window.SOURCE_LIBRARY = [
       "17. Оценочный отчет прогресса и реализации NDC3",
       "2024",
       "Analytical reports",
+      "NDC 3.0",
+      "NDC 3.0 progress and implementation assessment",
+      "NDC3",
       "climate",
+      "emissions reduction",
+      "greenhouse gas",
+      "implementation",
+      "progress",
       "report",
       "reports"
     ],
@@ -613,6 +656,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-a6df8002a0",
     "title": "Региональные адаптационные планы для Республики Каракалпакстан, Бухарской и Хорезмской областей",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -641,6 +685,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-458bdcef1f",
     "title": "Региональные адаптационные планы для Республики Каракалпакстан, Бухарской и Хорезмской областей",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -669,6 +714,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-6db8e45c00",
     "title": "Региональные адаптационные планы для Республики Каракалпакстан, Бухарской и Хорезмской областей",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -697,6 +743,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-c4b0ea2b94",
     "title": "Красная книга для детей",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -726,6 +773,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-49ee93bbfd",
     "title": "Анализ и оценка законодательной и институциональной базы Республики Узбекистан для регулирования химических веществ и отходов",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -755,6 +803,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-9b9b5f9e99",
     "title": "Обзорное исследование для создания национального регистра опасных химических веществ",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -783,6 +832,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-f900a09f60",
     "title": "Роль женщин в решении проблем рационального регулирования химических веществ и отходов",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -811,6 +861,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-d87ca313c1",
     "title": "Циркулярная экономика как инструмент минимизации отходов и увеличения выгод для общества",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -839,6 +890,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-24f195b346",
     "title": "Вещества: нарушающие работу эндокринной системы",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -867,6 +919,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-6c0bb2f64c",
     "title": "Отчет по оценке информации по вопросам климата (англ.)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -896,6 +949,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-b64aca1827",
     "title": "Обзор расходов на биоразнообразие",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -925,6 +979,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "cpeir-4e82e99d15",
     "title": "Обзор климатических государственных расходов и институциональный обзор (CPEIR)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -954,6 +1009,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-e1743e2957",
     "title": "Дорожная карта устойчивой инвестиционной политики Узбекистана (вкл. главу о зелёных инвестициях)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -985,6 +1041,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-95149c65b6",
     "title": "Ответственное деловое поведение для устойчивой инфраструктуры (Казахстан, Монголия и Узбекистан)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1014,6 +1071,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2024-2028-1-7052462349",
     "title": "Страновая стратегия партнёрства: Узбекистан, 2024-2028 (Столп 1: Переход к зелёной экономике)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1043,6 +1101,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2024-2029-001fab92fe",
     "title": "Страновая стратегия ЕБРР по Узбекистану 2024-2029",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1072,6 +1131,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "dpo-subprogram-1-fac26da504",
     "title": "Ускорение климатического перехода Узбекистана (DPO Subprogram 1)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1101,6 +1161,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "gggi-2024-2028-ef9e83554b",
     "title": "Страновая программа GGGI: Узбекистан 2024-2028",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1130,6 +1191,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2025-pm2-5-37fa2db66b",
     "title": "Доклад о состоянии глобального воздуха 2025 (данные по Узбекистану — PM2.5)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1159,6 +1221,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "the-time-is-now-7d762da080",
     "title": "Пора действовать: как Узбекистан может использовать урбанизацию как двигатель устойчивого развития? (The Time is Now)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1188,6 +1251,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "livable-and-productive-cities-500-50251cee38",
     "title": "Программа «Комфортные и продуктивные города Узбекистана» (Livable and Productive Cities, $500 млн)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1217,6 +1281,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "national-urban-assessment-1e344e0c00",
     "title": "Раскрытие потенциала урбанизации Узбекистана: Национальная городская оценка (National Urban Assessment)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1246,6 +1311,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-b5341a5f04",
     "title": "Подготовка нового странового профиля по городскому развитию, жилью и земельным ресурсам (в процессе)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1275,6 +1341,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "2023-un-cca-update-b02637b03c",
     "title": "Общая страновая оценка ООН: Узбекистан — обновление 2023 (UN CCA Update)",
+    "alias": "",
     "category": "report",
     "categoryLabel": "Report",
     "collection": "Analytical reports",
@@ -1304,6 +1371,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "karakalpakstan-region-map-4af4c97dcf",
     "title": "Karakalpakstan Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1331,6 +1399,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "andijan-region-map-dd0a7cd5c2",
     "title": "Andijan Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1358,6 +1427,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "bukhara-region-map-cfa0abd877",
     "title": "Bukhara Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1385,6 +1455,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "fergana-region-map-bd1d6b121a",
     "title": "Fergana Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1412,6 +1483,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "jizzakh-region-map-65f8eb9a27",
     "title": "Jizzakh Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1439,6 +1511,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "namangan-region-map-7c7b73e25b",
     "title": "Namangan Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1466,6 +1539,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "navoiy-region-map-0f1ec7a922",
     "title": "Navoiy Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1493,6 +1567,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "qashqadaryo-region-map-0428a8a2f5",
     "title": "Qashqadaryo Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1520,6 +1595,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "samarkand-region-map-1970658461",
     "title": "Samarkand Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1547,6 +1623,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "sirdaryo-region-map-693fc8919b",
     "title": "Sirdaryo Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1574,6 +1651,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "surkhandarya-region-map-5907e4e394",
     "title": "Surkhandarya Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1601,6 +1679,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "tashkent-region-map-91b5831a42",
     "title": "Tashkent Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1628,6 +1707,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "khorezm-region-map-9936a5670d",
     "title": "Khorezm Region Map",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Regional maps",
@@ -1655,6 +1735,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "agroclimatic-zones-90b480346e",
     "title": "Agroclimatic Zones",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1682,6 +1763,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "air-temperature-aa5bb78350",
     "title": "Air Temperature",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1711,6 +1793,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "atmospheric-pressure-affb252b0b",
     "title": "Atmospheric Pressure",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1738,6 +1821,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "wind-conditions-163d6312b3",
     "title": "Wind Conditions",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1765,6 +1849,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "weather-hazards-4843b64c16",
     "title": "Weather Hazards",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1792,6 +1877,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "avalanche-risk-areas-9bbb36fb31",
     "title": "Avalanche Risk Areas",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1819,6 +1905,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "mudflow-hazard-zones-d5911704af",
     "title": "Mudflow Hazard Zones",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1846,6 +1933,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "river-feeding-sources-61e1911dff",
     "title": "River Feeding Sources",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1873,6 +1961,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "water-reservoirs-c018f8f5e5",
     "title": "Water Reservoirs",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1900,6 +1989,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "direct-solar-radiation-annual-sum-under-clear-sky-55f06fecec",
     "title": "Direct Solar Radiation - Annual Sum Under Clear Sky",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1927,6 +2017,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "total-incoming-solar-radiation-under-clear-sky-28a43bbcb1",
     "title": "Total Incoming Solar Radiation Under Clear Sky",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1954,6 +2045,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-1990-5c215a9309",
     "title": "Climate Water Deficit, 1990",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -1984,6 +2076,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-types-bf58f5701b",
     "title": "Climate Types",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2011,6 +2104,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "projected-climate-types-2100-1f9b7dcea1",
     "title": "Projected Climate Types, 2100",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2039,6 +2133,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "expected-temperature-change-2040-76aee3d252",
     "title": "Expected Temperature Change, 2040",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2067,6 +2162,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "maximum-air-temperature-trend-1960-2023-582df57bad",
     "title": "Maximum Air Temperature Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2097,6 +2193,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-trend-1990-2023-3a1c41a801",
     "title": "Climate Water Deficit Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2127,6 +2224,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "precipitation-trend-1960-2023-d8b3cbfb2f",
     "title": "Precipitation Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2157,6 +2255,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "mean-air-temperature-trend-1990-2023-df1d52ea0f",
     "title": "Mean Air Temperature Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2187,6 +2286,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "snow-cover-thickness-trend-1960-2024-4dc56efa80",
     "title": "Snow Cover Thickness Trend, 1960-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2215,6 +2315,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "humidity-and-frost-dates-e12588fd0f",
     "title": "Humidity and Frost Dates",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2242,6 +2343,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "geomorphology-b832dcd5b3",
     "title": "Geomorphology",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2269,6 +2371,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "relief-processes-c1b5049805",
     "title": "Relief Processes",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Atlas thematic maps",
@@ -2296,6 +2399,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "introduction-drivers-of-change-f5acc51963",
     "title": "Introduction / Drivers of Change",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2323,6 +2427,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-change-text-200a3dc190",
     "title": "Climate Change - Text",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2352,6 +2457,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-trends-text-and-table-4207d55e59",
     "title": "Climate Trends - Text and Table",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2381,6 +2487,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-change-text-and-climate-types-3b5e865e02",
     "title": "Climate Change Text and Climate Types",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2410,6 +2517,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "projected-climate-types-2100-d1035879a8",
     "title": "Projected Climate Types, 2100",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2440,6 +2548,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "local-climate-zones-5d765ef171",
     "title": "Local Climate Zones",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2469,6 +2578,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "start-of-growing-season-2000-2024-0371314d19",
     "title": "Start of Growing Season, 2000-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2497,6 +2607,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "peak-of-growing-season-2000-2024-02b03203f2",
     "title": "Peak of Growing Season, 2000-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2525,6 +2636,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "growing-season-duration-2000-2024-284e1f46da",
     "title": "Growing Season Duration, 2000-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2553,6 +2665,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "end-of-growing-season-2000-2024-aa3537fddb",
     "title": "End of Growing Season, 2000-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2581,6 +2694,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "mean-air-temperature-trend-1960-2023-cba4dca3d9",
     "title": "Mean Air Temperature Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2613,6 +2727,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "mean-air-temperature-trend-1990-2023-d12a997781",
     "title": "Mean Air Temperature Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2645,6 +2760,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "warm-season-temperature-trend-1960-2023-b26312e755",
     "title": "Warm-Season Temperature Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2675,6 +2791,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "warm-season-temperature-trend-1990-2023-0cf7b61e66",
     "title": "Warm-Season Temperature Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2705,6 +2822,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "maximum-air-temperature-trend-1960-2023-a5561b6bb3",
     "title": "Maximum Air Temperature Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2737,6 +2855,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "precipitation-trend-1960-2023-8664fc429f",
     "title": "Precipitation Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2767,6 +2886,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "precipitation-trend-1990-2023-21a3bae643",
     "title": "Precipitation Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2797,6 +2917,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "snow-cover-thickness-trend-1960-2024-98f7075579",
     "title": "Snow Cover Thickness Trend, 1960-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2825,6 +2946,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "snow-cover-thickness-trend-1990-2024-2e82d51aa5",
     "title": "Snow Cover Thickness Trend, 1990-2024",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2853,6 +2975,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-1990-235ed307c6",
     "title": "Climate Water Deficit, 1990",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2883,6 +3006,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-2023-8ae0b28177",
     "title": "Climate Water Deficit, 2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2913,6 +3037,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-trend-1960-2023-4c81599c41",
     "title": "Climate Water Deficit Trend, 1960-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2943,6 +3068,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-water-deficit-trend-1990-2023-651b7dc7ea",
     "title": "Climate Water Deficit Trend, 1990-2023",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -2973,6 +3099,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "expected-temperature-change-2040-e7a76bbe72",
     "title": "Expected Temperature Change, 2040",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -3003,6 +3130,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "expected-precipitation-change-2040-5ea19640ac",
     "title": "Expected Precipitation Change, 2040",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Drivers of change",
@@ -3033,6 +3161,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-section-cover-67f4ad0978",
     "title": "Climate Section Cover",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3060,6 +3189,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "climate-text-c18035e126",
     "title": "Climate Text",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3087,6 +3217,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "humidity-and-frost-dates-93b35f06b0",
     "title": "Humidity and Frost Dates",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3114,6 +3245,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "atmospheric-precipitation-3823bb8a55",
     "title": "Atmospheric Precipitation",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3143,6 +3275,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "total-solar-radiation-under-clear-sky-bd2a6bf7c2",
     "title": "Total Solar Radiation Under Clear Sky",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3170,6 +3303,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "direct-solar-radiation-under-clear-sky-1e7f538f93",
     "title": "Direct Solar Radiation Under Clear Sky",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3197,6 +3331,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "clear-sky-days-2b98753007",
     "title": "Clear-Sky Days",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3224,6 +3359,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "sunshine-duration-hours-2b47e390df",
     "title": "Sunshine Duration, Hours",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3251,6 +3387,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "air-temperature-6f8a26e005",
     "title": "Air Temperature",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3280,6 +3417,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "hydrometeorological-monitoring-network-9e55ba47bb",
     "title": "Hydrometeorological Monitoring Network",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3307,6 +3445,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "meteorological-phenomena-9bd96934c4",
     "title": "Meteorological Phenomena",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3334,6 +3473,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "atmospheric-pressure-418a297c05",
     "title": "Atmospheric Pressure",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3361,6 +3501,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "wind-conditions-3697792a89",
     "title": "Wind Conditions",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3388,6 +3529,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "agroclimatic-zones-bcddb076cd",
     "title": "Agroclimatic Zones",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3415,6 +3557,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "agroclimatic-text-10c280f10b",
     "title": "Agroclimatic Text",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3442,6 +3585,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "hydrometeorological-station-photos-d2dcd30ca9",
     "title": "Hydrometeorological Station Photos",
+    "alias": "",
     "category": "map",
     "categoryLabel": "Map",
     "collection": "Climate chapter",
@@ -3469,6 +3613,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-2853716026",
     "title": "Климатический атлас справочник",
+    "alias": "",
     "category": "reference",
     "categoryLabel": "Source PDF",
     "collection": "Source atlases",
@@ -3496,6 +3641,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-e45fe39e91",
     "title": "Национальный атлас Республики Узб",
+    "alias": "",
     "category": "reference",
     "categoryLabel": "Source PDF",
     "collection": "Source atlases",
@@ -3523,6 +3669,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-c7b5cfdfbb",
     "title": "Отчёт о возможном ущербе изменения климата на экономику",
+    "alias": "",
     "category": "reference",
     "categoryLabel": "Source PDF",
     "collection": "Source atlases",
@@ -3550,6 +3697,7 @@ window.SOURCE_LIBRARY = [
   {
     "id": "document-f4c4550ee1",
     "title": "Презентация города и открытые данные",
+    "alias": "",
     "category": "reference",
     "categoryLabel": "Source PDF",
     "collection": "Source atlases",

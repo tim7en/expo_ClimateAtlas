@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Atlas of Uzbekistan - Climate and Water</title>
+    <title>Uzbekistan Climate and Environment Evidence Library</title>
     <meta
       name="description"
-      content="An offline interactive climate atlas of Uzbekistan with regional plates, map notes, pan-and-zoom, and searchable contents."
+      content="An offline interactive evidence library for Uzbekistan climate and environmental reports, source maps, PDF previews, search, zoom, and local notes."
     />
     <link rel="stylesheet" href="css/style.css" />
   </head>
@@ -26,15 +26,10 @@
           </svg>
 
           <div class="brand-tx">
-            <div class="k">Offline Climate Atlas</div>
-            <div class="t">Atlas of Uzbekistan</div>
+            <div class="k">Offline Evidence Library</div>
+            <div class="t">Uzbekistan Climate and Environment</div>
           </div>
         </div>
-
-        <label class="atlas-switcher" for="atlas-select">
-          <span>Atlas Set</span>
-          <select id="atlas-select" name="atlas-select"></select>
-        </label>
 
         <div class="sp"></div>
 
@@ -56,7 +51,7 @@
           <span class="lbl">Library</span>
         </button>
 
-        <button class="tbtn" id="btnModerator" type="button">
+        <button class="tbtn" id="btnModerator" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3 4 7v6c0 5 3.4 7.8 8 8 4.6-0.2 8-3 8-8V7l-8-4Z" />
             <path d="M9.5 11.5 11 13l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -77,54 +72,51 @@
           <div class="graticule" aria-hidden="true"></div>
 
           <div class="cv">
-            <p class="ek">Interactive album · climate and water plates</p>
+            <p class="ek">Offline evidence panel</p>
             <h1>
-              Climate and <em>Water</em><br />
-              of Uzbekistan
+              Uzbekistan Climate and<br />
+              <em>Environment</em> Library
             </h1>
             <div class="rule"></div>
             <p>
-              A tactile, offline atlas for pavilion screens and local installations,
-              built around regional map plates, environmental notes, and a fluid map
-              viewport for exploration.
+              A professional offline workspace for reviewing national climate,
+              environmental, adaptation, biodiversity, air quality, and urban
+              resilience documents. Search reports, preview PDFs, zoom into pages,
+              and keep local notes for analysis sessions.
             </p>
 
             <div class="meta" aria-label="Atlas overview">
               <div>
-                <div class="n" id="metric-plates">14</div>
-                <div class="l" id="metric-plates-label">Plates</div>
+                <div class="n" id="metric-plates">126</div>
+                <div class="l" id="metric-plates-label">Documents</div>
               </div>
               <div>
-                <div class="n" id="metric-rivers">2</div>
-                <div class="l" id="metric-rivers-label">Great Rivers</div>
+                <div class="n" id="metric-rivers">45</div>
+                <div class="l" id="metric-rivers-label">Reports</div>
               </div>
               <div>
-                <div class="n" id="metric-sea">1</div>
-                <div class="l" id="metric-sea-label">Vanishing Sea</div>
+                <div class="n" id="metric-sea">77</div>
+                <div class="l" id="metric-sea-label">Map PDFs</div>
               </div>
             </div>
 
-            <p class="atlas-current">
-              Current atlas set: <strong id="atlas-current-name">Climate and Water</strong>
-            </p>
-
             <div class="cover-actions">
               <button class="begin" id="btnBegin" type="button">
-                Open the atlas
+                Browse reports
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
                   <path d="M5 12h14M13 5l7 7-7 7" />
                 </svg>
               </button>
 
               <button class="begin begin-secondary" id="btnOpenLibrary" type="button">
-                Open library
+                Full library
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                   <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
                 </svg>
               </button>
 
-              <button class="begin begin-secondary" id="btnOpenModerator" type="button">
+              <button class="begin begin-secondary" id="btnOpenModerator" type="button" hidden>
                 Open moderator
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <path d="M12 3 4 7v6c0 5 3.4 7.8 8 8 4.6-0.2 8-3 8-8V7l-8-4Z" />
@@ -274,22 +266,22 @@
             </svg>
           </button>
 
-          <h2>Atlas Contents</h2>
-          <div class="csub" id="contents-subtitle">Search plates in the selected atlas</div>
+          <h2>Report Contents</h2>
+          <div class="csub" id="contents-subtitle">Analytical reports and policy documents</div>
 
           <div class="contents-tools">
             <label class="search-field" for="contents-search">
-              <span>Find a region, river, landscape, or risk</span>
+              <span>Filter reports by key names</span>
               <input
                 id="contents-search"
                 name="contents-search"
                 type="search"
                 autocomplete="off"
-                placeholder="Search by region, river, climate, or water system"
+                placeholder="Search NDC, GHG emissions, climate, air quality, biodiversity"
               />
             </label>
 
-            <p class="result-pill" id="contents-count">14 plates visible</p>
+            <p class="result-pill" id="contents-count">Reports visible</p>
           </div>
 
           <div class="cgrid" id="cgrid"></div>
