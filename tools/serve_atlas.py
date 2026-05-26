@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from time import perf_counter
 from urllib import error, parse, request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +22,7 @@ class AiConfig:
     base_url: str
     chat_path: str
     model: str
+    image_detail: str
     timeout: float
 
 
@@ -80,12 +82,23 @@ def read_float_env(name: str, default: float) -> float:
         return default
 
 
+def read_choice_env(*names: str, choices: set[str], default: str) -> str:
+    value = read_text_env(*names, default=default).lower()
+    return value if value in choices else default
+
+
 def load_ai_config() -> AiConfig:
     return AiConfig(
         api_key=read_text_env("ATLAS_AI_API_KEY", "OPENAI_API_KEY", "OPENAI_API"),
         base_url=read_text_env("ATLAS_AI_BASE_URL", "OPENAI_BASE_URL", default="https://api.openai.com/v1").rstrip("/"),
         chat_path=f"/{os.getenv('ATLAS_AI_CHAT_PATH', 'chat/completions').strip().lstrip('/')}",
         model=read_text_env("ATLAS_AI_MODEL", "OPENAI_MODEL", default="gpt-4.1-mini") or "gpt-4.1-mini",
+        image_detail=read_choice_env(
+            "ATLAS_AI_IMAGE_DETAIL",
+            "OPENAI_IMAGE_DETAIL",
+            choices={"low", "auto", "high"},
+            default="low",
+        ),
         timeout=read_float_env("ATLAS_AI_TIMEOUT", 60.0),
     )
 
@@ -209,7 +222,7 @@ def extract_explanation(response_payload: dict) -> str:
     return flatten_message_content(message.get("content"))
 
 
-def request_ai_explanation(payload: dict, ai_config: AiConfig) -> tuple[str, str]:
+def request_ai_explanation(payload: dict, ai_config: AiConfig) -> tuple[str, str, int]:
     endpoint = f"{ai_config.base_url}{ai_config.chat_path}"
     request_body = {
         "model": ai_config.model,
@@ -231,6 +244,7 @@ def request_ai_explanation(payload: dict, ai_config: AiConfig) -> tuple[str, str
                         "type": "image_url",
                         "image_url": {
                             "url": str(payload.get("imageDataUrl") or "").strip(),
+                            "detail": ai_config.image_detail,
                         },
                     },
                 ],
@@ -248,6 +262,7 @@ def request_ai_explanation(payload: dict, ai_config: AiConfig) -> tuple[str, str
         method="POST",
     )
 
+    started_at = perf_counter()
     try:
         with request.urlopen(http_request, timeout=ai_config.timeout) as response:
             raw_response = response.read().decode("utf-8")
@@ -268,7 +283,8 @@ def request_ai_explanation(payload: dict, ai_config: AiConfig) -> tuple[str, str
         raise RuntimeError("The AI provider returned an empty explanation.")
 
     response_model = str(response_payload.get("model") or ai_config.model).strip() or ai_config.model
-    return explanation.strip(), response_model
+    duration_ms = max(0, round((perf_counter() - started_at) * 1000))
+    return explanation.strip(), response_model, duration_ms
 
 
 class AtlasRequestHandler(SimpleHTTPRequestHandler):
@@ -298,6 +314,8 @@ class AtlasRequestHandler(SimpleHTTPRequestHandler):
                 {
                     "configured": bool(self.ai_config.api_key),
                     "model": self.ai_config.model,
+                    "imageDetail": self.ai_config.image_detail,
+                    "chatPath": self.ai_config.chat_path,
                     "updatedAt": utc_timestamp(),
                 }
             )
@@ -345,7 +363,7 @@ class AtlasRequestHandler(SimpleHTTPRequestHandler):
             return
 
         try:
-            explanation, model = request_ai_explanation(payload, self.ai_config)
+            explanation, model, duration_ms = request_ai_explanation(payload, self.ai_config)
         except RuntimeError as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
             return
@@ -354,6 +372,7 @@ class AtlasRequestHandler(SimpleHTTPRequestHandler):
             {
                 "explanation": explanation,
                 "model": model,
+                "durationMs": duration_ms,
                 "updatedAt": utc_timestamp(),
             }
         )
@@ -417,7 +436,7 @@ def main() -> None:
 
     print(f"Serving atlas at {origin}/")
     if ai_config.api_key:
-        print(f"AI explanations enabled with model {ai_config.model}.")
+        print(f"AI explanations enabled with model {ai_config.model} and {ai_config.image_detail} image detail.")
     else:
         print("AI explanations are disabled. Set ATLAS_AI_API_KEY, OPENAI_API_KEY, or OPENAI_API to enable /api/explain-page.")
 
