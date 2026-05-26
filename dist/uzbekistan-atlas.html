@@ -11483,6 +11483,22 @@ function getDefaultLibraryAiPlaceholder() {
   return "The explanation uses the current PDF page image together with extracted page text to create a short climate briefing.";
 }
 
+function formatLibraryAiModelRun(model, durationMs) {
+  const details = [];
+  const modelLabel = String(model || "").trim();
+  const duration = Number(durationMs) || 0;
+
+  if (modelLabel) {
+    details.push(modelLabel);
+  }
+
+  if (duration > 0) {
+    details.push(`${formatLibraryAiDuration(duration)}`);
+  }
+
+  return details.length ? ` (${details.join(" · ")})` : "";
+}
+
 function setLibraryAiStatus(message, isAlert = false) {
   if (!elements.libraryAiStatus) {
     return;
@@ -11613,7 +11629,7 @@ function syncLibraryAiPanel(statusMessage = "", isAlert = false) {
   }
 
   if (hasCachedExplanation) {
-    setLibraryAiStatus(`English explanation ready for page ${state.libraryPage}.`);
+    setLibraryAiStatus(`English explanation ready for page ${state.libraryPage}${formatLibraryAiModelRun(cacheEntry?.model, cacheEntry?.durationMs)}.`);
     return;
   }
 
@@ -11788,10 +11804,11 @@ async function explainSelectedLibraryPage() {
     state.libraryAiCache[getLibraryPageStorageKey(sourceDocument.id, pageNumber)] = {
       text: explanation,
       updatedAt: String(payload?.updatedAt || new Date().toISOString()),
-      model: String(payload?.model || "").trim()
+      model: String(payload?.model || "").trim(),
+      durationMs: Math.max(0, Number(payload?.durationMs) || 0)
     };
     persistLibraryAiCache();
-    finalStatusMessage = `English explanation generated for page ${pageNumber}.`;
+    finalStatusMessage = `English explanation generated for page ${pageNumber}${formatLibraryAiModelRun(payload?.model, payload?.durationMs)}.`;
   } catch (error) {
     if (error?.name === "AbortError") {
       return;

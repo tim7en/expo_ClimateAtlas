@@ -47,7 +47,8 @@ Optional environment variables:
 1. `ATLAS_AI_MODEL` to override the default model name.
 2. `ATLAS_AI_BASE_URL` to point at a compatible OpenAI-style endpoint.
 3. `ATLAS_AI_CHAT_PATH` to override the default `/chat/completions` path.
-4. `ATLAS_AI_TIMEOUT` to change the upstream timeout in seconds.
+4. `ATLAS_AI_IMAGE_DETAIL` to choose `low`, `auto`, or `high` image analysis detail. The default is `low` for faster atlas-map explanations.
+5. `ATLAS_AI_TIMEOUT` to change the upstream timeout in seconds.
 
 The MVP AI flow stays focused on climate-related map pages in the library viewer. It sends the current rendered page image plus extracted page text to the local proxy, which keeps the API key out of the browser.
 

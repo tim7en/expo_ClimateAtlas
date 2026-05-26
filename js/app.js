@@ -3376,7 +3376,7 @@ function syncLibraryAiPanel(statusMessage = "", isAlert = false) {
   }
 
   if (hasCachedExplanation) {
-    setLibraryAiStatus(`English explanation ready for page ${state.libraryPage}.`);
+    setLibraryAiStatus(`English explanation ready for page ${state.libraryPage}${formatLibraryAiModelRun(cacheEntry?.model, cacheEntry?.durationMs)}.`);
     return;
   }
 
