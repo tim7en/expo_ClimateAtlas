@@ -1966,12 +1966,12 @@ textarea:focus-visible,
   min-height: 2.4em;
 }
 
-.climate-map-ai-chip {
+.climate-map-viewer-chip {
   gap: 6px;
   background: rgba(15, 118, 110, 0.14);
 }
 
-.climate-map-ai-chip svg {
+.climate-map-viewer-chip svg {
   width: 12px;
   height: 12px;
   flex: 0 0 auto;
@@ -3496,8 +3496,8 @@ textarea:focus-visible,
                 A focused set of visual maps covering observed trends, projected
                 change, climate water deficit, precipitation, temperature, snow
                 cover, solar radiation, growing seasons, and meteorological
-                conditions for Uzbekistan. Tap a climate map card to open the AI
-                rover briefing for that page.
+                conditions for Uzbekistan. Tap a climate map card to open that
+                map in the PDF viewer with an AI briefing.
               </p>
             </div>
 
@@ -3588,6 +3588,8 @@ textarea:focus-visible,
                     <button class="draft-action" id="library-zoom-out" type="button">Zoom out</button>
                     <button class="draft-action" id="library-zoom-in" type="button">Zoom in</button>
                     <button class="draft-action" id="library-zoom-fit" type="button">Fit</button>
+                    <button class="draft-action" id="library-rotate-left" type="button">Rotate left</button>
+                    <button class="draft-action" id="library-rotate-right" type="button">Rotate right</button>
                     <button class="draft-action library-ai-trigger" id="library-ai-explain" type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 3 4 7v5c0 4.6 3 7.2 8 9 5-1.8 8-4.4 8-9V7l-8-4Z" stroke-linejoin="round" />
@@ -8656,6 +8658,7 @@ const state = {
   libraryPage: 1,
   libraryPageCount: 0,
   libraryZoom: 1,
+  libraryRotation: 0,
   libraryRenderTask: null,
   libraryRenderToken: 0,
   libraryNoteSaveTimer: null,
@@ -8788,6 +8791,8 @@ const elements = {
   libraryZoomOut: document.querySelector("#library-zoom-out"),
   libraryZoomIn: document.querySelector("#library-zoom-in"),
   libraryZoomFit: document.querySelector("#library-zoom-fit"),
+  libraryRotateLeft: document.querySelector("#library-rotate-left"),
+  libraryRotateRight: document.querySelector("#library-rotate-right"),
   libraryAiPanel: document.querySelector("#library-ai-panel"),
   libraryAiExplain: document.querySelector("#library-ai-explain"),
   libraryAiExplainLabel: document.querySelector("#library-ai-explain-label"),
@@ -10877,15 +10882,15 @@ function renderClimateMapCard(sourceDocument, visibleIndex) {
   const noteTag = hasLibraryNote(sourceDocument.id)
     ? '<div class="card-draft-tag">Notes saved</div>'
     : "";
-  const aiTag = `
-    <div class="card-draft-tag climate-map-ai-chip">
+  const viewerTag = `
+    <div class="card-draft-tag climate-map-viewer-chip">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M12 4v3" stroke-linecap="round" />
         <rect x="6.5" y="7.5" width="11" height="8.5" rx="3.5" />
         <path d="M9.4 12h.01M14.6 12h.01" stroke-linecap="round" />
         <path d="M10 15.2c.7.5 1.3.7 2 .7s1.3-.2 2-.7" stroke-linecap="round" />
       </svg>
-      <span>AI rover on tap</span>
+      <span>Open PDF viewer</span>
     </div>
   `;
 
@@ -10908,7 +10913,7 @@ function renderClimateMapCard(sourceDocument, visibleIndex) {
         <h4>${escapeHtml(sourceDocument.title)}</h4>
         <div class="ct">${escapeHtml(metaParts.join(" - ") || sourceDocument.collection)}</div>
         ${noteTag}
-        ${aiTag}
+        ${viewerTag}
       </div>
     </button>
   `;
@@ -12013,21 +12018,49 @@ function setLibraryPdfMessage(message, isAlert = false) {
   elements.libraryPdfEmpty.classList.toggle("is-alert", Boolean(isAlert));
 }
 
+function normalizeLibraryRotation(rotation) {
+  const normalized = Number(rotation) || 0;
+  return ((Math.round(normalized / 90) * 90) % 360 + 360) % 360;
+}
+
+function getLibraryPageRotation(pdfPage) {
+  const pageRotation = normalizeLibraryRotation(pdfPage?.rotate || 0);
+  return normalizeLibraryRotation(pageRotation + state.libraryRotation);
+}
+
 function updateLibraryPdfControls() {
   if (!elements.libraryPage) {
     return;
   }
 
   const hasDocument = Boolean(state.libraryPdfDocument);
+  const rotationLabel = state.libraryRotation
+    ? ` · rotated ${state.libraryRotation}deg`
+    : "";
   elements.libraryPage.textContent = hasDocument
-    ? `Page ${state.libraryPage} of ${state.libraryPageCount} · ${Math.round(state.libraryZoom * 100)}%`
+    ? `Page ${state.libraryPage} of ${state.libraryPageCount} · ${Math.round(state.libraryZoom * 100)}%${rotationLabel}`
     : "Page -- of --";
   elements.libraryPrev.disabled = !hasDocument || state.libraryPage <= 1;
   elements.libraryNext.disabled = !hasDocument || state.libraryPage >= state.libraryPageCount;
   elements.libraryZoomOut.disabled = !hasDocument || state.libraryZoom <= SOURCE_LIBRARY_MIN_ZOOM;
   elements.libraryZoomIn.disabled = !hasDocument || state.libraryZoom >= SOURCE_LIBRARY_MAX_ZOOM;
   elements.libraryZoomFit.disabled = !hasDocument || state.libraryZoom === 1;
+  if (elements.libraryRotateLeft) {
+    elements.libraryRotateLeft.disabled = !hasDocument;
+  }
+  if (elements.libraryRotateRight) {
+    elements.libraryRotateRight.disabled = !hasDocument;
+  }
   syncLibraryAiPanel();
+}
+
+function rotateLibraryPdf(deltaDegrees) {
+  if (!state.libraryPdfDocument) {
+    return;
+  }
+
+  state.libraryRotation = normalizeLibraryRotation(state.libraryRotation + deltaDegrees);
+  void renderLibraryPdfPage(state.libraryPage);
 }
 
 function isLocalPreviewEnvironment() {
@@ -12108,11 +12141,12 @@ async function renderLibraryPdfPage(requestedPage = state.libraryPage, retryCoun
 
     const pageTextPromise = extractLibraryPageText(page);
 
-    const baseViewport = page.getViewport({ scale: 1 });
+    const pageRotation = getLibraryPageRotation(page);
+    const baseViewport = page.getViewport({ scale: 1, rotation: pageRotation });
     const stageWidth = Math.max(320, (elements.libraryPdfStage?.clientWidth || 720) - 56);
     const fitScale = Math.min(SOURCE_LIBRARY_PREVIEW_MAX_SCALE, stageWidth / baseViewport.width);
     const scale = Math.max(0.2, Math.min(SOURCE_LIBRARY_PREVIEW_MAX_SCALE, fitScale * state.libraryZoom));
-    const viewport = page.getViewport({ scale });
+    const viewport = page.getViewport({ scale, rotation: pageRotation });
     const outputScale = window.devicePixelRatio || 1;
     const canvas = elements.libraryCanvas;
     const context = canvas.getContext("2d", { alpha: false });
@@ -12196,6 +12230,7 @@ function renderLibraryDocument(sourceDocument, options = {}) {
     abortLibraryAiRequest();
     state.librarySelectedId = "";
     state.libraryPendingExplainId = "";
+    state.libraryRotation = 0;
     elements.libraryDocKicker.textContent = "Source PDF";
     elements.libraryDocTitle.textContent = "Select a document";
     elements.libraryDocMeta.innerHTML = "";
@@ -12217,6 +12252,7 @@ function renderLibraryDocument(sourceDocument, options = {}) {
   state.librarySelectedId = sourceDocument.id;
   state.libraryPage = 1;
   state.libraryZoom = 1;
+  state.libraryRotation = 0;
 
   elements.libraryDocKicker.textContent = `${sourceDocument.categoryLabel} · ${sourceDocument.collection}`;
   elements.libraryDocTitle.textContent = sourceDocument.title;
@@ -13920,6 +13956,14 @@ function wireEvents() {
   elements.libraryZoomFit.addEventListener("click", () => {
     state.libraryZoom = 1;
     void renderLibraryPdfPage(state.libraryPage);
+  });
+
+  elements.libraryRotateLeft?.addEventListener("click", () => {
+    rotateLibraryPdf(-90);
+  });
+
+  elements.libraryRotateRight?.addEventListener("click", () => {
+    rotateLibraryPdf(90);
   });
 
   elements.libraryNote.addEventListener("input", () => {

@@ -118,8 +118,8 @@ The current scaffold now ships as a scene-based album UI:
 Core controls:
 
 1. Use **Browse reports** or the top-bar **Contents** button to open the report thumbnail grid.
-2. Use **Climate maps** to review visual climate-change maps such as temperature trends, precipitation, snow cover, water deficit, solar radiation, and growing-season indicators.
-3. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom the PDF canvas, open the original file, and write local notes per report or map.
+2. Use **Climate maps** to review visual climate-change maps such as temperature trends, precipitation, snow cover, water deficit, solar radiation, and growing-season indicators; selecting a card opens that map in the PDF viewer.
+3. Use the top-bar **Library** button or press `L` to filter source PDFs, preview pages, zoom or rotate the PDF canvas, open the original file, and write local notes per report or map.
 4. Search terms such as `NDC 3.0`, `GHG`, and `emissions reduction` surface the NDC ambition and implementation reports.
 5. For climate map pages in the library, press `E` or click **Explain page** to generate an English explanation of the current page.
 6. Use `F` for fullscreen and `Esc` to close overlays.
